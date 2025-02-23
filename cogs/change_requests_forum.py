@@ -88,7 +88,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
 
 
 
-    @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=1)
+    @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=2)
     async def submit_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
 
         # assert itx.guild
@@ -114,7 +114,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
         # )
         ...
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=1)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
     async def cancel_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
         ...
 
@@ -125,7 +125,7 @@ class ForumTagsSelect(discord.ui.Select):
             discord.SelectOption(label=tag.name, value=str(tag.id))
             for tag in forum_tags
         ]
-        super().__init__(placeholder="Select a forum tag", options=options, max_values=len(forum_tags))
+        super().__init__(placeholder="Select a forum tag", options=options, max_values=len(forum_tags), row=1)
 
     async def callback(self, itx: GenjiItx) -> None:
         await itx.response.send_message(f"Selected {', '.join(self.values)}", ephemeral=True)
@@ -237,6 +237,7 @@ class ChangeRequestsCog(commands.Cog):
             await itx.response.send_message(
                 "There are already open change requests for this map. What would you like to do?",
                 view=view,
+                embed=ChangeRequest.build_embed(map_code, change_requests),
             )
             await view.wait()
             if not view.value:
