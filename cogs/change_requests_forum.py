@@ -53,7 +53,7 @@ class ChangeRequestCloseView(discord.ui.View):
         forum = itx.guild.get_channel(FORUM_ID)
         assert isinstance(forum, discord.ForumChannel)
         resolved_tag = next(item for item in forum.available_tags if item.name == "Resolved")
-        await thread.edit(archived=True, locked=True, applied_tags=[*thread.applied_tags[:4], resolved_tag])
+        await thread.edit(archived=True, locked=True, applied_tags=[resolved_tag, *thread.applied_tags[:4]])
         query = """
             UPDATE change_requests
             SET resolved = TRUE
