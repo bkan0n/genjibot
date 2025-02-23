@@ -68,6 +68,7 @@ class DuplicatedChangeRequestView(discord.ui.View):
     async def cancel_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
         self.stop()
         await itx.response.send_message("Change request cancelled.", ephemeral=True)
+        await itx.delete_original_response()
 
 
 class ChangeRequestConfirmationView(discord.ui.View):
@@ -78,17 +79,57 @@ class ChangeRequestConfirmationView(discord.ui.View):
         self.add_item(forum_tags_select)
         self.edit_details_modal = ChangeRequestModal(map_code)
 
+    @staticmethod
+    async def _fetch_map_data(db: Database, map_code: str) -> asyncpg.Record:
+        query = """
+            SELECT
+              am.map_name, map_type, am.map_code, am."desc", am.official,
+              am.archived, guide, mechanics, restrictions, am.checkpoints,
+              creators, difficulty, quality, creator_ids, am.gold, am.silver,
+              am.bronze, p.thread_id, pa.count, pa.required_votes
+              FROM
+                all_maps am
+                  LEFT JOIN playtest p ON am.map_code = p.map_code AND p.is_author IS TRUE
+                  LEFT JOIN playtest_avgs pa ON pa.map_code = am.map_code
+             WHERE
+                 ($1::text IS NULL OR am.map_code = $1)
+             GROUP BY
+               am.map_name, map_type, am.map_code, am."desc", am.official, am.archived, guide, mechanics,
+               restrictions, am.checkpoints, creators, difficulty, quality, creator_ids, am.gold, am.silver,
+               am.bronze, p.thread_id, pa.count, pa.required_votes
+            ORDER BY
+                difficulty, quality DESC;
+        """
+        return await db.fetchrow(query, map_code)
+
+    @staticmethod
+    def _build_embed(map_data: asyncpg.Record) -> discord.Embed:
+        embed = GenjiEmbed()
+        m = MapEmbedData(map_data)
+        embed.add_description_field(
+            name=m.name,
+            value=m.value,
+        )
+        return embed
+
     @discord.ui.button(label="Edit Details", style=discord.ButtonStyle.blurple, row=0)
     async def edit_details_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
         await itx.response.send_modal(self.edit_details_modal)
         await self.edit_details_modal.wait()
         if not self.edit_details_modal.submitted:
             return
+        self.submit_button.disabled = False
+        map_data = await self._fetch_map_data(itx.client.database, self.map_code)
+        embed = self._build_embed(map_data)
+        content = (
+            "Please provide the details of your change request.\n\n"
+            f"`Request`: {self.edit_details_modal.feedback.value}"
+        )
+        await itx.edit_original_response(content=content, embed=embed, view=self)
 
 
 
-
-    @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=2)
+    @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=2, disabled=True)
     async def submit_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
 
         # assert itx.guild
@@ -128,7 +169,8 @@ class ForumTagsSelect(discord.ui.Select):
         super().__init__(placeholder="Select a forum tag", options=options, max_values=len(forum_tags), row=1)
 
     async def callback(self, itx: GenjiItx) -> None:
-        await itx.response.send_message(f"Selected {', '.join(self.values)}", ephemeral=True)
+        _value_names = [option.label for option in self.options if option.value in self.values]
+        await itx.response.send_message(f"Selected {', '.join(_value_names)}", ephemeral=True)
 
 
 
@@ -145,42 +187,8 @@ class ChangeRequestModal(discord.ui.Modal):
     )
 
     async def on_submit(self, itx: GenjiItx) -> None:
-        await itx.response.edit_message(content=self.feedback.value)
+        await itx.response.send_message("Details have been edited.", ephemeral=True)
         self.submitted = True
-
-
-    @staticmethod
-    async def _fetch_map_data(db: Database, map_code: str) -> asyncpg.Record:
-        query = """
-            SELECT
-              am.map_name, map_type, am.map_code, am."desc", am.official,
-              am.archived, guide, mechanics, restrictions, am.checkpoints,
-              creators, difficulty, quality, creator_ids, am.gold, am.silver,
-              am.bronze, p.thread_id, pa.count, pa.required_votes
-              FROM
-                all_maps am
-                  LEFT JOIN playtest p ON am.map_code = p.map_code AND p.is_author IS TRUE
-                  LEFT JOIN playtest_avgs pa ON pa.map_code = am.map_code
-             WHERE
-                 ($1::text IS NULL OR am.map_code = $1)
-             GROUP BY
-               am.map_name, map_type, am.map_code, am."desc", am.official, am.archived, guide, mechanics,
-               restrictions, am.checkpoints, creators, difficulty, quality, creator_ids, am.gold, am.silver,
-               am.bronze, p.thread_id, pa.count, pa.required_votes
-            ORDER BY
-                difficulty, quality DESC;
-        """
-        return await db.fetchrow(query, map_code)
-
-    @staticmethod
-    def _build_embed(map_data: asyncpg.Record) -> discord.Embed:
-        embed = GenjiEmbed()
-        m = MapEmbedData(map_data)
-        embed.add_description_field(
-            name=m.name,
-            value=m.value,
-        )
-        return embed
 
     @staticmethod
     async def _get_map_creators(db: Database, map_code: str) -> list[int]:
@@ -253,6 +261,7 @@ class ChangeRequestsCog(commands.Cog):
         await resp(
             content="Please provide the details of your change request.",
             view=view,
+            embeds=[]
         )
 
 
