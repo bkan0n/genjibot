@@ -14,6 +14,7 @@ from discord import ButtonStyle
 import views
 from utils import constants, embeds, maps, ranks, transformers, utils
 from utils.newsfeed import NewsfeedEvent
+import contextlib
 
 if TYPE_CHECKING:
     import core
@@ -696,7 +697,8 @@ class PlaytestVoting(discord.ui.View):
         await self.delete_map_from_db()
         if author:
             # TODO: Modal for reason
-            await self.send_denial_to_author(author)
+            with contextlib.suppress(Exception):
+                await self.send_denial_to_author(author)
         await self.delete_playtest_db_entry()
         itx.client.playtest_views.pop(itx.message.id)
 
