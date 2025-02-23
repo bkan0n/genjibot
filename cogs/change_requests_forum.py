@@ -431,6 +431,14 @@ class ChangeRequestsCog(commands.Cog):
         self.bot = bot
         self.db = bot.database
 
+    async def cog_load(self) -> None:
+        self.alert_stale_change_requests.start()
+        return await super().cog_load()
+
+    async def cog_unload(self) -> None:
+        self.alert_stale_change_requests.stop()
+        return await super().cog_unload()
+
     async def _fetch_change_requests(self, map_code: str) -> list[ChangeRequest]:
         query = """
             SELECT *
