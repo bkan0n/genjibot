@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 FORUM_ID = 1342953312000934069
 
 
-class ChangeRequestCloseView(discord.ui.View):
+class ChangeRequestModCloseView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
 
@@ -42,7 +42,7 @@ class ChangeRequestCloseView(discord.ui.View):
     @discord.ui.button(
         label="Close (Sensei Only)",
         style=discord.ButtonStyle.red,
-        custom_id="CR-Close",
+        custom_id="CR-ModClose",
         row=1,
         emoji="\N{HEAVY MULTIPLICATION X}",
     )
@@ -117,7 +117,7 @@ class ChangeRequestArchiveMapButton(
             assert isinstance(itx.channel, discord.Thread)
             await itx.channel.send(
                 f"<@&1120076555293569081>\n\n{itx.user.mention} is requesting map archive.",
-                view=ChangeRequestCloseView(),
+                view=ChangeRequestModCloseView(),
             )
         else:
             await itx.edit_original_response(content="You do not have permission to use this.")
@@ -159,7 +159,7 @@ class ChangeRequestConfirmChangesButton(
             assert isinstance(itx.channel, discord.Thread)
             await itx.channel.send(
                 f"<@&1120076555293569081>\n\n{itx.user.mention} has confirmed changes have been made.",
-                view=ChangeRequestCloseView(),
+                view=ChangeRequestModCloseView(),
             )
         else:
             await itx.edit_original_response(content="You do not have permission to use this.")
@@ -201,7 +201,7 @@ class ChangeRequestDenyChangesButton(
             assert isinstance(itx.channel, discord.Thread)
             await itx.channel.send(
                 f"<@&1120076555293569081>\n\n{itx.user.mention} is denying changes as non applicable.",
-                view=ChangeRequestCloseView(),
+                view=ChangeRequestModCloseView(),
             )
         else:
             await itx.edit_original_response(content="You do not have permission to use this.")
@@ -476,4 +476,4 @@ async def setup(bot: Genji) -> None:
     bot.add_dynamic_items(ChangeRequestConfirmChangesButton)
     bot.add_dynamic_items(ChangeRequestDenyChangesButton)
     bot.add_dynamic_items(ChangeRequestArchiveMapButton)
-    bot.add_view(ChangeRequestCloseView())
+    bot.add_view(ChangeRequestModCloseView())
