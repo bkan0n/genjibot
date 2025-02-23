@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 import re
 import traceback
@@ -15,7 +16,6 @@ from utils.embeds import GenjiEmbed
 from utils.maps import MapEmbedData
 
 if typing.TYPE_CHECKING:
-    import datetime
 
     import asyncpg
 
