@@ -223,7 +223,7 @@ class ChangeRequest(msgspec.Struct):
             name = f"Resolved Change Request {i + 1}" if cr.resolved else f"Unresolved Change Request {i + 1}"
             embed.add_field(
                 name=name,
-                value=f">>> `Request:` {cr.content}\n{cr.jump_url}",
+                value=f">>> `Request` {cr.content}\n{cr.jump_url}",
                 inline=False,
             )
             if len(embed) >= embed_len_limit:
@@ -430,7 +430,7 @@ class ChangeRequestsCog(commands.Cog):
             ORDER BY created_at DESC, resolved DESC;
         """
         rows = await self.db.fetch(query, map_code)
-        return [ChangeRequest(*row) for row in rows]
+        return [ChangeRequest(**row) for row in rows]
 
     @command(name="change-request-test")
     @guilds(constants.GUILD_ID)
