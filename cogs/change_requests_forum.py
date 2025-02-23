@@ -485,7 +485,7 @@ class ChangeRequestsCog(commands.Cog):
     async def alert_stale_change_requests(self) -> None:
         query = """
             SELECT thread_id, user_id
-            FROM change_request
+            FROM change_requests
             WHERE created_at < NOW() - INTERVAL '2 weeks'
                 AND alerted IS FALSE AND resolved IS FALSE;
         """
