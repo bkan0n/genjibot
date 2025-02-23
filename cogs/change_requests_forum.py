@@ -9,7 +9,7 @@ import typing
 import discord
 import msgspec
 from discord.app_commands import Transform, command, guilds
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from utils import constants, transformers
 from utils.embeds import GenjiEmbed
@@ -218,6 +218,7 @@ class ChangeRequest(msgspec.Struct):
     map_code: str | None = None
     user_id: int | None = None
     creator_mentions: str | None = None
+    alerted: bool = False
 
     @property
     def jump_url(self) -> str:
@@ -471,6 +472,37 @@ class ChangeRequestsCog(commands.Cog):
             await itx.edit_original_response(content=content, view=view, embeds=[])
         else:
             await itx.response.send_message(content=content, view=view, embeds=[], ephemeral=True)
+
+    @tasks.loop(hours=1)
+    async def alert_stale_change_requests(self) -> None:
+        query = """
+            SELECT thread_id, user_id
+            FROM change_request
+            WHERE created_at < NOW() - INTERVAL '2 weeks'
+                AND alerted IS FALSE AND resolved IS FALSE;
+        """
+        rows = await self.db.fetch(query)
+        for row in rows:
+            thread = self.bot.get_channel(row["thread_id"])
+            if not thread:
+                continue
+            assert isinstance(thread, discord.Thread)
+            user = self.bot.get_user(row["user_id"])
+            mention = user.mention if user else ""
+            await thread.send(
+                f"{mention}<@&1120076555293569081>\n# This change request is now stale. "
+                "If you have made the necessary changes, please click the button above to confirm.",
+                view=ChangeRequestModCloseView(),
+            )
+            await self._set_alerted(row["thread_id"])
+
+    async def _set_alerted(self, thread_id: int) -> None:
+        query = """
+            UPDATE change_request
+            SET alerted = TRUE
+            WHERE thread_id = $1;
+        """
+        await self.db.execute(query, thread_id)
 
 
 async def setup(bot: Genji) -> None:
