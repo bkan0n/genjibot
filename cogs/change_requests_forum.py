@@ -53,7 +53,10 @@ class ChangeRequestModCloseView(discord.ui.View):
         forum = itx.guild.get_channel(FORUM_ID)
         assert isinstance(forum, discord.ForumChannel)
         resolved_tag = next(item for item in forum.available_tags if item.name == "Resolved")
-        await thread.edit(archived=True, locked=True, applied_tags=[resolved_tag, *thread.applied_tags][:5])
+        tags = thread.applied_tags
+        if resolved_tag not in tags:
+            tags.append(resolved_tag)
+        await thread.edit(archived=True, locked=True, applied_tags=tags[:5])
         query = """
             UPDATE change_requests
             SET resolved = TRUE
@@ -105,7 +108,7 @@ class ChangeRequestArchiveMapButton(
         return cls(match["map_code"], match["thread_id"])
 
     async def callback(self, itx: GenjiItx) -> None:
-        await itx.response.defer(ephemeral=True)
+        await itx.response.defer(ephemeral=True, thinking=True)
         permitted = await _check_permission_for_change_request_button(
             itx.client.database,
             itx.user.id,
@@ -147,7 +150,7 @@ class ChangeRequestConfirmChangesButton(
         return cls(match["map_code"], match["thread_id"])
 
     async def callback(self, itx: GenjiItx) -> None:
-        await itx.response.defer(ephemeral=True)
+        await itx.response.defer(ephemeral=True, thinking=True)
         permitted = await _check_permission_for_change_request_button(
             itx.client.database,
             itx.user.id,
@@ -189,7 +192,7 @@ class ChangeRequestDenyChangesButton(
         return cls(match["map_code"], match["thread_id"])
 
     async def callback(self, itx: GenjiItx) -> None:
-        await itx.response.defer(ephemeral=True)
+        await itx.response.defer(ephemeral=True, thinking=True)
         permitted = await _check_permission_for_change_request_button(
             itx.client.database,
             itx.user.id,
@@ -452,7 +455,7 @@ class ChangeRequestsCog(commands.Cog):
                 "There are already open change requests for this map. What would you like to do?",
                 view=view,
                 embed=ChangeRequest.build_embed(map_code, change_requests),
-                ephemeral=True
+                ephemeral=True,
             )
             await view.wait()
             if not view.value:
