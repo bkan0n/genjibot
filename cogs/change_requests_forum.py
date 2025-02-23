@@ -446,19 +446,22 @@ class ChangeRequestsCog(commands.Cog):
                 "There are already open change requests for this map. What would you like to do?",
                 view=view,
                 embed=ChangeRequest.build_embed(map_code, change_requests),
+                ephemeral=True
             )
             await view.wait()
             if not view.value:
                 return
 
-        resp = itx.edit_original_response if itx.response.is_done() else itx.response.send_message
         assert itx.guild
         forum = itx.guild.get_channel(FORUM_ID)
         assert isinstance(forum, discord.ForumChannel)
         forum_tags_select = ForumTagsSelect([tag for tag in forum.available_tags if tag.name != "Resolved"])
         view = ChangeRequestConfirmationView(map_code, forum_tags_select)
-
-        await resp(content="Please provide the details of your change request.", view=view, embeds=[])
+        content = "Please provide the details of your change request."
+        if itx.response.is_done():
+            await itx.edit_original_response(content=content, view=view, embeds=[])
+        else:
+            await itx.response.send_message(content=content, view=view, embeds=[], ephemeral=True)
 
 
 async def setup(bot: Genji) -> None:
