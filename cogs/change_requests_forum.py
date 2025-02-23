@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import traceback
 import typing
 
@@ -26,6 +27,82 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+
+class ChangeRequestView(discord.ui.View):
+    def __init__(self, map_code: str, thread_id: int) -> None:
+        super().__init__(timeout=None)
+        self.add_item(ChangeRequestConfirmChangesButton(map_code, str(thread_id)))
+        self.add_item(ChangeRequestDenyChangesButton(map_code, str(thread_id)))
+        self.add_item(ChangeRequestArchiveMapButton(map_code, str(thread_id)))
+
+class ChangeRequestArchiveMapButton(
+    discord.ui.DynamicItem[discord.ui.Button],
+    template=r"CRA-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
+):
+    def __init__(self, map_code: str, thread_id: str) -> None:
+        custom_id = "-".join(["CRA", map_code, thread_id])
+        super().__init__(
+            discord.ui.Button(
+                label="Archive Map",
+                style=discord.ButtonStyle.red,
+                custom_id=custom_id,
+                emoji="\N{CARD FILE BOX}",
+            )
+        )
+        self.thread_id = thread_id
+        self.map_code = map_code
+
+    @classmethod
+    async def from_custom_id(
+        cls, itx: GenjiItx, item: discord.ui.Button, match: re.Match[str]
+    ) -> ChangeRequestArchiveMapButton:
+        return cls(match["map_code"], match["thread_id"])
+
+class ChangeRequestConfirmChangesButton(
+    discord.ui.DynamicItem[discord.ui.Button],
+    template=r"CRC-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
+):
+    def __init__(self, map_code: str, thread_id: str) -> None:
+        custom_id = "-".join(["CRC", map_code, thread_id])
+        super().__init__(
+            discord.ui.Button(
+                label="Confirm changes have been made",
+                style=discord.ButtonStyle.green,
+                custom_id=custom_id,
+                emoji="\N{THUMBS UP SIGN}",
+            )
+        )
+        self.thread_id = thread_id
+        self.map_code = map_code
+
+    @classmethod
+    async def from_custom_id(
+        cls, itx: GenjiItx, item: discord.ui.Button, match: re.Match[str]
+    ) -> ChangeRequestConfirmChangesButton:
+        return cls(match["map_code"], match["thread_id"])
+
+class ChangeRequestDenyChangesButton(
+    discord.ui.DynamicItem[discord.ui.Button],
+    template=r"CRD-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
+):
+    def __init__(self, map_code: str, thread_id: str) -> None:
+        custom_id = "-".join(["CRD", map_code, thread_id])
+        super().__init__(
+            discord.ui.Button(
+                label="Deny changes as non applicable",
+                style=discord.ButtonStyle.red,
+                custom_id=custom_id,
+                emoji="\N{HEAVY MULTIPLICATION X}",
+            )
+        )
+        self.thread_id = thread_id
+        self.map_code = map_code
+
+    @classmethod
+    async def from_custom_id(
+        cls, itx: GenjiItx, item: discord.ui.Button, match: re.Match[str]
+    ) -> ChangeRequestDenyChangesButton:
+        return cls(match["map_code"], match["thread_id"])
 
 class ChangeRequest(msgspec.Struct):
     content: str
@@ -177,19 +254,22 @@ class ChangeRequestConfirmationView(discord.ui.View):
             f"## {itx.user.mention} is requesting changes for map **{self.map_code}**\n\n"
             f"{self.edit_details_modal.feedback.value}"
         )
-        # view = ChangeRequestConfirmationView(user_ids, self.map_code)
+
         map_data = await self._fetch_map_data(itx.client.database, self.map_code)
         embed = self._build_embed(map_data)
-        await channel.create_thread(
+        thread = await channel.create_thread(
             name=f"CR-{self.map_code} Discussion",
             content=content,
             embed=embed,
             applied_tags=self._construct_forum_tags(itx.guild),
-            #    view=view,
         )
+        view = ChangeRequestView(self.map_code, thread[0].id)
+        await thread[1].edit(view=view)
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
-    async def cancel_button(self, itx: GenjiItx, button: discord.ui.Button) -> None: ...
+    async def cancel_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
+        await itx.response.send_message("Change request cancelled.", ephemeral=True)
+        await itx.delete_original_response()
 
 
 class ForumTagsSelect(discord.ui.Select):
