@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-import re
+import re  # noqa: TC003
 import traceback
 import typing
 
@@ -16,7 +16,6 @@ from utils.embeds import GenjiEmbed
 from utils.maps import MapEmbedData
 
 if typing.TYPE_CHECKING:
-
     import asyncpg
 
     from core import Genji
@@ -27,6 +26,35 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+FORUM_ID = 1342953312000934069
+
+
+class ChangeRequestCloseView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=None)
+
+    async def interaction_check(self, itx: GenjiItx, /) -> bool:
+        assert itx.guild and isinstance(itx.user, discord.Member)
+        sensei = itx.guild.get_role(842790097312153610)
+        moderator = itx.guild.get_role(1128014001318666423)
+        return sensei in itx.user.roles or moderator in itx.user.roles
+
+    @discord.ui.button(
+        label="Close (Sensei Only)",
+        style=discord.ButtonStyle.red,
+        custom_id="CR-Close",
+        row=1,
+        emoji="\N{HEAVY MULTIPLICATION X}",
+    )
+    async def callback(self, itx: GenjiItx, button: discord.ui.Button) -> None:
+        await itx.response.send_message("Closing thread.")
+        thread = itx.channel
+        assert isinstance(thread, discord.Thread) and itx.guild
+        forum = itx.guild.get_channel(FORUM_ID)
+        assert isinstance(forum, discord.ForumChannel)
+        resolved_tag = next(item for item in forum.available_tags if item.name == "Resolved")
+        await thread.edit(archived=True, locked=True, applied_tags=[*thread.applied_tags, resolved_tag])
+
 
 class ChangeRequestView(discord.ui.View):
     def __init__(self, map_code: str, thread_id: int) -> None:
@@ -34,6 +62,18 @@ class ChangeRequestView(discord.ui.View):
         self.add_item(ChangeRequestConfirmChangesButton(map_code, str(thread_id)))
         self.add_item(ChangeRequestDenyChangesButton(map_code, str(thread_id)))
         self.add_item(ChangeRequestArchiveMapButton(map_code, str(thread_id)))
+
+
+async def _check_permission_for_change_request_button(
+    db: Database, user_id: int, thread_id: int, map_code: str
+) -> bool:
+    query = """
+        SELECT creator_mentions FROM change_requests
+        WHERE thread_id = $1 AND map_code = $2;
+    """
+    val = await db.fetchval(query, thread_id, map_code)
+    return str(user_id) in val
+
 
 class ChangeRequestArchiveMapButton(
     discord.ui.DynamicItem[discord.ui.Button],
@@ -43,7 +83,7 @@ class ChangeRequestArchiveMapButton(
         custom_id = "-".join(["CRA", map_code, thread_id])
         super().__init__(
             discord.ui.Button(
-                label="Archive Map",
+                label="Request Map Archive",
                 style=discord.ButtonStyle.red,
                 custom_id=custom_id,
                 emoji="\N{CARD FILE BOX}",
@@ -57,6 +97,25 @@ class ChangeRequestArchiveMapButton(
         cls, itx: GenjiItx, item: discord.ui.Button, match: re.Match[str]
     ) -> ChangeRequestArchiveMapButton:
         return cls(match["map_code"], match["thread_id"])
+
+    async def callback(self, itx: GenjiItx) -> None:
+        await itx.response.defer(ephemeral=True)
+        permitted = await _check_permission_for_change_request_button(
+            itx.client.database,
+            itx.user.id,
+            int(self.thread_id),
+            self.map_code,
+        )
+        if permitted:
+            await itx.edit_original_response(content="Requesting map archive.")
+            assert isinstance(itx.channel, discord.Thread)
+            await itx.channel.send(
+                f"<@&1120076555293569081>\n\n{itx.user.mention} is requesting map archive.",
+                view=ChangeRequestCloseView(),
+            )
+        else:
+            await itx.edit_original_response(content="You do not have permission to use this.")
+
 
 class ChangeRequestConfirmChangesButton(
     discord.ui.DynamicItem[discord.ui.Button],
@@ -81,6 +140,25 @@ class ChangeRequestConfirmChangesButton(
     ) -> ChangeRequestConfirmChangesButton:
         return cls(match["map_code"], match["thread_id"])
 
+    async def callback(self, itx: GenjiItx) -> None:
+        await itx.response.defer(ephemeral=True)
+        permitted = await _check_permission_for_change_request_button(
+            itx.client.database,
+            itx.user.id,
+            int(self.thread_id),
+            self.map_code,
+        )
+        if permitted:
+            await itx.edit_original_response(content="Confirming changes have been made.")
+            assert isinstance(itx.channel, discord.Thread)
+            await itx.channel.send(
+                f"<@&1120076555293569081>\n\n{itx.user.mention} has confirmed changes have been made.",
+                view=ChangeRequestCloseView(),
+            )
+        else:
+            await itx.edit_original_response(content="You do not have permission to use this.")
+
+
 class ChangeRequestDenyChangesButton(
     discord.ui.DynamicItem[discord.ui.Button],
     template=r"CRD-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
@@ -104,6 +182,25 @@ class ChangeRequestDenyChangesButton(
     ) -> ChangeRequestDenyChangesButton:
         return cls(match["map_code"], match["thread_id"])
 
+    async def callback(self, itx: GenjiItx) -> None:
+        await itx.response.defer(ephemeral=True)
+        permitted = await _check_permission_for_change_request_button(
+            itx.client.database,
+            itx.user.id,
+            int(self.thread_id),
+            self.map_code,
+        )
+        if permitted:
+            await itx.edit_original_response(content="Denying changes.")
+            assert isinstance(itx.channel, discord.Thread)
+            await itx.channel.send(
+                f"<@&1120076555293569081>\n\n{itx.user.mention} is denying changes as non applicable.",
+                view=ChangeRequestCloseView(),
+            )
+        else:
+            await itx.edit_original_response(content="You do not have permission to use this.")
+
+
 class ChangeRequest(msgspec.Struct):
     content: str
     thread_id: int
@@ -115,7 +212,7 @@ class ChangeRequest(msgspec.Struct):
 
     @property
     def jump_url(self) -> str:
-        return f"https://discord.com/channels/1342953312000934069/{self.thread_id}"
+        return f"https://discord.com/channels/{FORUM_ID}/{self.thread_id}"
 
     @classmethod
     def build_embed(cls, map_code: str, change_requests: list[ChangeRequest]) -> discord.Embed:
@@ -139,6 +236,7 @@ class ChangeRequest(msgspec.Struct):
             VALUES ($1, $2, $3, $4, $5);
         """
         await db.execute(query, self.thread_id, self.map_code, self.user_id, self.content, self.creator_mentions)
+
 
 class DuplicatedChangeRequestView(discord.ui.View):
     def __init__(
@@ -244,7 +342,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
         await itx.edit_original_response(content=content, embed=None, view=self)
 
     def _construct_forum_tags(self, guild: discord.Guild) -> list[discord.ForumTag]:
-        channel = guild.get_channel(1342953312000934069)
+        channel = guild.get_channel(FORUM_ID)
         assert isinstance(channel, discord.ForumChannel)
         tags = [channel.get_tag(int(tag)) for tag in self.forum_tags_select.values]
         return [tag for tag in tags if tag]
@@ -253,7 +351,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
     async def submit_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
         self.stop()
         assert itx.guild
-        channel = itx.guild.get_channel(1342953312000934069)
+        channel = itx.guild.get_channel(FORUM_ID)
         assert isinstance(channel, discord.ForumChannel)
         user_ids = await self._get_map_creators(itx.client.database, self.map_code)
         mentions = self._convert_ids_to_mentions(user_ids, itx.guild)
@@ -325,7 +423,7 @@ class ChangeRequestsCog(commands.Cog):
 
     async def _fetch_change_requests(self, map_code: str) -> list[ChangeRequest]:
         query = """
-            SELECT content, created_at, thread_id, resolved
+            SELECT *
             FROM change_requests
             WHERE map_code = $1
                 AND resolved IS FALSE
@@ -355,7 +453,7 @@ class ChangeRequestsCog(commands.Cog):
 
         resp = itx.edit_original_response if itx.response.is_done() else itx.response.send_message
         assert itx.guild
-        forum = itx.guild.get_channel(1342953312000934069)
+        forum = itx.guild.get_channel(FORUM_ID)
         assert isinstance(forum, discord.ForumChannel)
         forum_tags_select = ForumTagsSelect([tag for tag in forum.available_tags if tag.name != "Resolved"])
         view = ChangeRequestConfirmationView(map_code, forum_tags_select)
@@ -366,3 +464,7 @@ class ChangeRequestsCog(commands.Cog):
 async def setup(bot: Genji) -> None:
     """Add Cog to Discord bot."""
     await bot.add_cog(ChangeRequestsCog(bot))
+    bot.add_dynamic_items(ChangeRequestConfirmChangesButton)
+    bot.add_dynamic_items(ChangeRequestDenyChangesButton)
+    bot.add_dynamic_items(ChangeRequestArchiveMapButton)
+    bot.add_view(ChangeRequestCloseView())
