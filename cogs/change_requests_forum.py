@@ -83,10 +83,10 @@ async def _check_permission_for_change_request_button(
 
 class ChangeRequestArchiveMapButton(
     discord.ui.DynamicItem[discord.ui.Button],
-    template=r"CRA-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
+    template=r"FCRA-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
 ):
     def __init__(self, map_code: str, thread_id: str) -> None:
-        custom_id = "-".join(["CRA", map_code, thread_id])
+        custom_id = "-".join(["FCRA", map_code, thread_id])
         super().__init__(
             discord.ui.Button(
                 label="Request Map Archive",
@@ -125,10 +125,10 @@ class ChangeRequestArchiveMapButton(
 
 class ChangeRequestConfirmChangesButton(
     discord.ui.DynamicItem[discord.ui.Button],
-    template=r"CRC-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
+    template=r"FCRC-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
 ):
     def __init__(self, map_code: str, thread_id: str) -> None:
-        custom_id = "-".join(["CRC", map_code, thread_id])
+        custom_id = "-".join(["FCRC", map_code, thread_id])
         super().__init__(
             discord.ui.Button(
                 label="Confirm changes have been made",
@@ -167,10 +167,10 @@ class ChangeRequestConfirmChangesButton(
 
 class ChangeRequestDenyChangesButton(
     discord.ui.DynamicItem[discord.ui.Button],
-    template=r"CRD-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
+    template=r"FCRD-(?P<map_code>[A-Z0-9]{4,6})-(?P<thread_id>\d+)",
 ):
     def __init__(self, map_code: str, thread_id: str) -> None:
-        custom_id = "-".join(["CRD", map_code, thread_id])
+        custom_id = "-".join(["FCRD", map_code, thread_id])
         super().__init__(
             discord.ui.Button(
                 label="Deny changes as non applicable",
