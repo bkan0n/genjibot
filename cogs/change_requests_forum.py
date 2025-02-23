@@ -106,9 +106,12 @@ class ChangeRequestDenyChangesButton(
 
 class ChangeRequest(msgspec.Struct):
     content: str
-    created_at: datetime.datetime
     thread_id: int
-    resolved: bool
+    created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+    resolved: bool = False
+    map_code: str | None = None
+    user_id: int | None = None
+    creator_mentions: str | None = None
 
     @property
     def jump_url(self) -> str:
@@ -130,6 +133,12 @@ class ChangeRequest(msgspec.Struct):
                 break
         return embed
 
+    async def insert_change_request(self, db: Database) -> None:
+        query = """
+            INSERT INTO change_requests (thread_id, map_code, user_id, content, creator_mentions)
+            VALUES ($1, $2, $3, $4, $5);
+        """
+        await db.execute(query, self.thread_id, self.map_code, self.user_id, self.content, self.creator_mentions)
 
 class DuplicatedChangeRequestView(discord.ui.View):
     def __init__(
@@ -242,6 +251,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
 
     @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=2, disabled=True)
     async def submit_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
+        self.stop()
         assert itx.guild
         channel = itx.guild.get_channel(1342953312000934069)
         assert isinstance(channel, discord.ForumChannel)
@@ -263,12 +273,21 @@ class ChangeRequestConfirmationView(discord.ui.View):
             embed=embed,
             applied_tags=self._construct_forum_tags(itx.guild),
         )
+        change_request = ChangeRequest(
+            content=self.edit_details_modal.feedback.value,
+            thread_id=thread[0].id,
+            map_code=self.map_code,
+            user_id=itx.user.id,
+            creator_mentions=mentions,
+        )
+        await change_request.insert_change_request(itx.client.database)
         view = ChangeRequestView(self.map_code, thread[0].id)
         await thread[1].edit(view=view)
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
     async def cancel_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
         await itx.response.send_message("Change request cancelled.", ephemeral=True)
+        self.stop()
         await itx.delete_original_response()
 
 
