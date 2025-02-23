@@ -54,6 +54,12 @@ class ChangeRequestCloseView(discord.ui.View):
         assert isinstance(forum, discord.ForumChannel)
         resolved_tag = next(item for item in forum.available_tags if item.name == "Resolved")
         await thread.edit(archived=True, locked=True, applied_tags=[*thread.applied_tags, resolved_tag])
+        query = """
+            UPDATE change_requests
+            SET resolved = TRUE
+            WHERE thread_id = $1;
+        """
+        await itx.client.database.execute(query, thread.id)
 
 
 class ChangeRequestView(discord.ui.View):
