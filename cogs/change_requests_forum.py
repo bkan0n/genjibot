@@ -224,7 +224,7 @@ class ChangeRequestsCog(commands.Cog):
         return [ChangeRequest(*row) for row in rows]
 
 
-    @command(name="change-request")
+    @command(name="change-request-test")
     @guilds(constants.GUILD_ID)
     async def change_request(
         self,
