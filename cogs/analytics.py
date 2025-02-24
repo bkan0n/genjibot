@@ -44,6 +44,13 @@ class AnalyticsTasks(commands.Cog):
                     _namespace[k] = v
                 elif isinstance(v, (discord.Member, discord.User, discord.Role, discord.Guild)):
                     _namespace[k] = f"{v.name} {v.id}"
+            log.info(
+                "On Interaction Logging the following info\n\n %s %s %s %s",
+                itx.command.name,
+                itx.user.id,
+                itx.created_at,
+                _namespace,
+            )
             self.bot.log_analytics(itx.command.name, itx.user.id, itx.created_at, _namespace)
 
     @tasks.loop(seconds=60)
