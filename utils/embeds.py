@@ -81,7 +81,7 @@ def set_embed_thumbnail_maps(map_name: str, embed: discord.Embed) -> discord.Emb
 
     """
     map_name = re.sub(r"[:'\s]", "", map_name).lower()
-    embed.set_thumbnail(url=f"http://bkan0n.com/assets/images/maps/{map_name}.png")
+    embed.set_thumbnail(url=f"http://bkan0n.com/assets/images/map_banners/{map_name}.png")
     return embed
 
 
