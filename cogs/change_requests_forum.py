@@ -330,8 +330,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
                 mentions.append(member.mention)
         return " ".join(mentions)
 
-    async def on_error(self, itx: GenjiItx, error: Exception) -> None:
-        await itx.response.send_message("Oops! Something went wrong.", ephemeral=True)
+    async def on_error(self, itx: GenjiItx, error: Exception, item: discord.ui.Item) -> None:
         traceback.print_exception(type(error), error, error.__traceback__)
 
     @discord.ui.button(label="Edit Details", style=discord.ButtonStyle.blurple, row=0)
