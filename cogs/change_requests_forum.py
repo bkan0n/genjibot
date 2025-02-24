@@ -28,6 +28,52 @@ log = logging.getLogger(__name__)
 
 FORUM_ID = 1342953312000934069
 
+async def _check_permission_for_change_request_button(
+    db: Database, user_id: int, thread_id: int, map_code: str
+) -> bool:
+    query = """
+        SELECT creator_mentions FROM change_requests
+        WHERE thread_id = $1 AND map_code = $2;
+    """
+    val = await db.fetchval(query, thread_id, map_code)
+    return str(user_id) in val
+
+class ChangeRequest(msgspec.Struct):
+    content: str
+    thread_id: int
+    created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
+    resolved: bool = False
+    map_code: str | None = None
+    user_id: int | None = None
+    creator_mentions: str | None = None
+    alerted: bool = False
+
+    @property
+    def jump_url(self) -> str:
+        return f"https://discord.com/channels/{FORUM_ID}/{self.thread_id}"
+
+    @classmethod
+    def build_embed(cls, map_code: str, change_requests: list[ChangeRequest]) -> discord.Embed:
+        embed = GenjiEmbed()
+        embed.title = f"Open Change Requests for {map_code}"
+        embed_len_limit = 5000  # Kept lower than actual limit (6000)
+        for i, cr in enumerate(change_requests):
+            name = f"Resolved Change Request {i + 1}" if cr.resolved else f"Unresolved Change Request {i + 1}"
+            embed.add_field(
+                name=name,
+                value=f">>> `Request` {cr.content}\n{cr.jump_url}",
+                inline=False,
+            )
+            if len(embed) >= embed_len_limit:
+                break
+        return embed
+
+    async def insert_change_request(self, db: Database) -> None:
+        query = """
+            INSERT INTO change_requests (thread_id, map_code, user_id, content, creator_mentions)
+            VALUES ($1, $2, $3, $4, $5);
+        """
+        await db.execute(query, self.thread_id, self.map_code, self.user_id, self.content, self.creator_mentions)
 
 class ChangeRequestModCloseView(discord.ui.View):
     def __init__(self) -> None:
@@ -63,25 +109,6 @@ class ChangeRequestModCloseView(discord.ui.View):
             WHERE thread_id = $1;
         """
         await itx.client.database.execute(query, thread.id)
-
-
-class ChangeRequestView(discord.ui.View):
-    def __init__(self, map_code: str, thread_id: int) -> None:
-        super().__init__(timeout=None)
-        self.add_item(ChangeRequestConfirmChangesButton(map_code, str(thread_id)))
-        self.add_item(ChangeRequestDenyChangesButton(map_code, str(thread_id)))
-        self.add_item(ChangeRequestArchiveMapButton(map_code, str(thread_id)))
-
-
-async def _check_permission_for_change_request_button(
-    db: Database, user_id: int, thread_id: int, map_code: str
-) -> bool:
-    query = """
-        SELECT creator_mentions FROM change_requests
-        WHERE thread_id = $1 AND map_code = $2;
-    """
-    val = await db.fetchval(query, thread_id, map_code)
-    return str(user_id) in val
 
 
 class ChangeRequestArchiveMapButton(
@@ -209,43 +236,12 @@ class ChangeRequestDenyChangesButton(
         else:
             await itx.edit_original_response(content="You do not have permission to use this.")
 
-
-class ChangeRequest(msgspec.Struct):
-    content: str
-    thread_id: int
-    created_at: datetime.datetime = datetime.datetime.now(datetime.timezone.utc)
-    resolved: bool = False
-    map_code: str | None = None
-    user_id: int | None = None
-    creator_mentions: str | None = None
-    alerted: bool = False
-
-    @property
-    def jump_url(self) -> str:
-        return f"https://discord.com/channels/{FORUM_ID}/{self.thread_id}"
-
-    @classmethod
-    def build_embed(cls, map_code: str, change_requests: list[ChangeRequest]) -> discord.Embed:
-        embed = GenjiEmbed()
-        embed.title = f"Open Change Requests for {map_code}"
-        embed_len_limit = 5000  # Kept lower than actual limit (6000)
-        for i, cr in enumerate(change_requests):
-            name = f"Resolved Change Request {i + 1}" if cr.resolved else f"Unresolved Change Request {i + 1}"
-            embed.add_field(
-                name=name,
-                value=f">>> `Request` {cr.content}\n{cr.jump_url}",
-                inline=False,
-            )
-            if len(embed) >= embed_len_limit:
-                break
-        return embed
-
-    async def insert_change_request(self, db: Database) -> None:
-        query = """
-            INSERT INTO change_requests (thread_id, map_code, user_id, content, creator_mentions)
-            VALUES ($1, $2, $3, $4, $5);
-        """
-        await db.execute(query, self.thread_id, self.map_code, self.user_id, self.content, self.creator_mentions)
+class ChangeRequestView(discord.ui.View):
+    def __init__(self, map_code: str, thread_id: int) -> None:
+        super().__init__(timeout=None)
+        self.add_item(ChangeRequestConfirmChangesButton(map_code, str(thread_id)))
+        self.add_item(ChangeRequestDenyChangesButton(map_code, str(thread_id)))
+        self.add_item(ChangeRequestArchiveMapButton(map_code, str(thread_id)))
 
 
 class DuplicatedChangeRequestView(discord.ui.View):
@@ -391,6 +387,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
         await change_request.insert_change_request(itx.client.database)
         view = ChangeRequestView(self.map_code, thread[0].id)
         await thread[1].edit(view=view)
+        await itx.delete_original_response()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
     async def cancel_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
@@ -450,7 +447,7 @@ class ChangeRequestsCog(commands.Cog):
         rows = await self.db.fetch(query, map_code)
         return [ChangeRequest(**row) for row in rows]
 
-    @command(name="change-request-test")
+    @command(name="change-request")
     @guilds(constants.GUILD_ID)
     async def change_request(
         self,
