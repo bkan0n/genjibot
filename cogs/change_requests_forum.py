@@ -355,6 +355,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
 
     @discord.ui.button(label="Submit", style=discord.ButtonStyle.green, row=2, disabled=True)
     async def submit_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
+        await itx.response.defer(ephemeral=True)
         self.stop()
         assert itx.guild
         channel = itx.guild.get_channel(FORUM_ID)
