@@ -503,7 +503,7 @@ class ChangeRequestsCog(commands.Cog):
 
     async def _set_alerted(self, thread_id: int) -> None:
         query = """
-            UPDATE change_request
+            UPDATE change_requests
             SET alerted = TRUE
             WHERE thread_id = $1;
         """
