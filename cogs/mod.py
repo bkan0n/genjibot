@@ -711,7 +711,7 @@ class ModCommands(commands.Cog):
         if type_ == "mechanics":
             query = "SELECT mechanic AS name FROM map_mechanics WHERE map_code = $1"
         elif type_ == "restrictions":
-            query = ""
+            query = "SELECT restriction AS name FROM map_restrictions WHERE map_code = $1"
         else:
             raise ValueError("Unknown type.")
         rows = await self.bot.database.fetch(query, map_code)
