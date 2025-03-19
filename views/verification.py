@@ -82,6 +82,7 @@ class VerificationView(discord.ui.View):
                     rq.user_id,
                     rq.completion,
                     rq.hidden_id,
+                    rq.video,
                     rank() OVER (
                         PARTITION BY rq.map_code, rq.user_id
                         ORDER BY rq.inserted_at DESC
@@ -92,7 +93,10 @@ class VerificationView(discord.ui.View):
             ), ranked_records AS (
                 SELECT
                     *,
-                    RANK() OVER (PARTITION BY map_code ORDER BY completion, record) as rank_num
+                    RANK() OVER (
+                    PARTITION BY map_code
+                    ORDER BY completion, video, record
+                ) as rank_num
                 FROM latest_records
                 WHERE latest = 1
             )
