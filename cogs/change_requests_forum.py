@@ -388,6 +388,7 @@ class ChangeRequestConfirmationView(discord.ui.View):
         view = ChangeRequestView(self.map_code, thread[0].id)
         await thread[1].edit(view=view)
         await itx.delete_original_response()
+        await thread[0].send(view=ChangeRequestModCloseView())
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=2)
     async def cancel_button(self, itx: GenjiItx, button: discord.ui.Button) -> None:
