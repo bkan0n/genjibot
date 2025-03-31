@@ -132,7 +132,7 @@ class Maps(commands.Cog):
         itx: discord.Interaction[core.Genji],
         map_name: app_commands.Transform[str, transformers.MapNameTransformer] | None = None,
         difficulty: app_commands.Choice[str] | None = None,
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer] | None = None,
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer] | None = None,
         creator: app_commands.Transform[int, transformers.CreatorTransformer] | None = None,
         mechanics: (app_commands.Transform[str, transformers.MapMechanicsTransformer] | None) = None,
         restrictions: (app_commands.Transform[str, transformers.MapRestrictionsTransformer] | None) = None,
@@ -214,22 +214,21 @@ class Maps(commands.Cog):
         _maps: list[database.DotRecord | None] = []
         async for _map in itx.client.database.get(
             """
-              WITH
-                completions AS (
-                    SELECT DISTINCT ON (map_code)
-                        map_code,
-                        record,
-                        verified,
-                        inserted_at
-                    FROM records
-                    WHERE user_id = $10 AND legacy IS FALSE
-                    ORDER BY map_code, inserted_at DESC
-                )
+            WITH completions AS (
+                SELECT DISTINCT ON (map_code)
+                    map_code,
+                    record,
+                    verified,
+                    inserted_at
+                FROM records
+                WHERE user_id = $10 AND legacy IS FALSE
+                ORDER BY map_code, inserted_at DESC
+            )
             SELECT
               am.map_name, map_type, am.map_code, am."desc", am.official,
               am.archived, guide, mechanics, restrictions, am.checkpoints,
               creators, difficulty, quality, creator_ids, am.gold, am.silver,
-              am.bronze, p.thread_id, pa.count, pa.required_votes,
+              am.bronze, p.thread_id, pa.count, pa.required_votes, archived,
               c.map_code IS NOT NULL AS completed,
               CASE
                 WHEN verified = TRUE AND c.record <= am.gold   THEN 'Gold'
@@ -258,7 +257,7 @@ class Maps(commands.Cog):
              GROUP BY
                am.map_name, map_type, am.map_code, am."desc", am.official, am.archived, guide, mechanics,
                restrictions, am.checkpoints, creators, difficulty, quality, creator_ids, am.gold, am.silver,
-               am.bronze, c.map_code IS NOT NULL, c.record, verified, p.thread_id, pa.count, pa.required_votes
+               am.bronze, c.map_code IS NOT NULL, c.record, verified, p.thread_id, pa.count, pa.required_votes, archived
             HAVING
                 ($9::bool IS NULL OR c.map_code IS NOT NULL = $9)
             ORDER BY
@@ -324,7 +323,7 @@ class Maps(commands.Cog):
     async def view_guide(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
     ) -> None:
         """View guides that have been submitted for a particular map.
 

@@ -113,15 +113,28 @@ class _MapCodeAutocompleteBaseTransformer(_MapCodeBaseTransformer):
 
 
 class MapCodeTransformer(_MapCodeAutocompleteBaseTransformer):
-    @staticmethod
-    def _clean_code(map_code: str) -> str:
-        return map_code.upper().replace("O", "0").lstrip().rstrip()
-
     async def transform(self, itx: discord.Interaction[core.Genji], value: str) -> str:
         value = self._clean_code(value)
         if not re.match(CODE_VERIFICATION, value):
             raise errors.IncorrectCodeFormatError
         query = "SELECT map_code FROM maps WHERE archived = FALSE ORDER BY similarity(map_code, $1) DESC LIMIT 1;"
+        res = await itx.client.database.fetch(query, value)
+        if not res or res[0]["map_code"] != value:
+            raise errors.NoMapsFoundError
+        return value
+
+class MapCodeAllTransformer(_MapCodeBaseTransformer):
+
+    async def autocomplete(self, itx: discord.Interaction[core.Genji], current: str) -> list[app_commands.Choice[str]]:
+        query = "SELECT map_code FROM maps ORDER BY similarity(map_code, $1) DESC LIMIT 5;"
+        results = await itx.client.database.fetch(query, current)
+        return [app_commands.Choice(name=a, value=a) for (a,) in results]
+
+    async def transform(self, itx: discord.Interaction[core.Genji], value: str) -> str:
+        value = self._clean_code(value)
+        if not re.match(CODE_VERIFICATION, value):
+            raise errors.IncorrectCodeFormatError
+        query = "SELECT map_code FROM maps ORDER BY similarity(map_code, $1) DESC LIMIT 1;"
         res = await itx.client.database.fetch(query, value)
         if not res or res[0]["map_code"] != value:
             raise errors.NoMapsFoundError

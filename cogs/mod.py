@@ -42,7 +42,7 @@ class ModCommands(commands.Cog):
     async def remove_guide(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
     ) -> None:
         """Remove a guide from a map.
 
@@ -88,7 +88,7 @@ class ModCommands(commands.Cog):
     async def add_creator(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         creator: app_commands.Transform[discord.Member | utils.FakeUser, transformers.AllUserTransformer],
     ) -> None:
         """Add a creator to a map.
@@ -105,7 +105,7 @@ class ModCommands(commands.Cog):
     async def remove_creator(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         creator: app_commands.Transform[discord.Member | utils.FakeUser, transformers.AllUserTransformer],
     ) -> None:
         """Remove a creator from a map.
@@ -122,7 +122,7 @@ class ModCommands(commands.Cog):
     async def edit_medals(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         gold: app_commands.Transform[float, transformers.RecordTransformer],
         silver: app_commands.Transform[float, transformers.RecordTransformer],
         bronze: app_commands.Transform[float, transformers.RecordTransformer],
@@ -491,7 +491,7 @@ class ModCommands(commands.Cog):
         self,
         itx: discord.Interaction[core.Genji],
         action: app_commands.Choice[str],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
     ) -> None:
         await itx.response.defer(ephemeral=True)
         query = """
@@ -551,7 +551,7 @@ class ModCommands(commands.Cog):
     async def difficulty(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         value: app_commands.Choice[str],
     ) -> None:
         """Completely change the difficulty of a map.
@@ -622,7 +622,7 @@ class ModCommands(commands.Cog):
     async def rating(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         value: app_commands.Choice[int],
     ) -> None:
         """Completely change the rating of a map.
@@ -657,7 +657,7 @@ class ModCommands(commands.Cog):
     async def map_type(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
     ) -> None:
         """Change the type of map.
 
@@ -721,7 +721,7 @@ class ModCommands(commands.Cog):
     async def mechanics(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
     ) -> None:
         """Change the mechanics of a map.
 
@@ -785,7 +785,7 @@ class ModCommands(commands.Cog):
     async def restrictions(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
     ) -> None:
         """Change the restrictions of a map.
 
@@ -852,7 +852,7 @@ class ModCommands(commands.Cog):
     async def checkpoints(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         checkpoint_count: app_commands.Range[int, 1, 500],
     ) -> None:
         """Change the checkpoint count of a map.
@@ -902,7 +902,7 @@ class ModCommands(commands.Cog):
     async def map_code(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         new_map_code: app_commands.Transform[str, transformers.MapCodeSubmitTransformer],
     ) -> None:
         """Change the map code of a map.
@@ -959,7 +959,7 @@ class ModCommands(commands.Cog):
     async def description(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         description: str,
     ) -> None:
         """Change the description of a map.
@@ -1005,7 +1005,7 @@ class ModCommands(commands.Cog):
     async def map_name(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
         map_name: app_commands.Transform[str, transformers.MapNameTransformer],
     ) -> None:
         """Change the description of a map.
@@ -1051,7 +1051,7 @@ class ModCommands(commands.Cog):
     async def convert_legacy(
         self,
         itx: discord.Interaction[core.Genji],
-        map_code: app_commands.Transform[str, transformers.MapCodeTransformer],
+        map_code: app_commands.Transform[str, transformers.MapCodeAllTransformer],
     ) -> None:
         await itx.response.defer(ephemeral=True)
 
