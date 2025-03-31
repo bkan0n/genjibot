@@ -458,11 +458,16 @@ class MapEmbedData:
         return f"`Desc` {self._data['desc']}" if self._data["desc"] else None
 
     @property
+    def _archived(self) -> str | None:
+        return "`THIS MAP IS ARCHIVED!`" if self._data.get("archived") else None
+
+    @property
     def name(self) -> str:
         return f"{self._data['map_code']} {self._completed}"
 
     def _non_null_values(self) -> list:
         values = (
+            self._archived,
             self._rating,
             self._creator,
             self._map,
