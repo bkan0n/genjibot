@@ -189,7 +189,10 @@ class Database:
 
     async def fetch_all_user_names(self, user_id: int) -> list[str]:
         query = "SELECT username FROM user_overwatch_usernames WHERE user_id = $1 ORDER BY is_primary DESC"
-        return [x["username"] for x in await self.fetch(query, user_id)]
+        res = await self.fetch(query, user_id)
+        if not res:
+            return []
+        return [x["username"] for x in res]
 
     async def is_existing_map_code(self, map_code: str) -> bool:
         query = "SELECT EXISTS(SELECT map_code FROM maps WHERE map_code = $1)"
