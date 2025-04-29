@@ -157,13 +157,7 @@ class BotEvents(commands.Cog):
         await self._insert_global_names_table(member)
 
     async def _check_if_member_is_map_creator(self, member: discord.Member) -> bool | None:
-        query = """
-            SELECT EXISTS(
-                SELECT 1 FROM maps
-                LEFT JOIN map_creators mc on maps.map_code = mc.map_code
-                WHERE user_id = $1
-            )
-        """
+        query = "SELECT EXISTS(SELECT 1 FROM map_creators WHERE user_id = $1);"
         return await self.bot.database.fetchval(query, member.id)
 
     async def _grant_map_maker(self, member: discord.Member) -> None:
