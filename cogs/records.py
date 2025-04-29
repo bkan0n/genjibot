@@ -10,6 +10,7 @@ from discord.ext import commands
 
 import views
 from utils import constants, embeds, errors, models, transformers, utils
+from views import OverwatchUsernamesView
 
 if typing.TYPE_CHECKING:
     import asyncpg
@@ -163,6 +164,10 @@ class Records(commands.Cog):
         image_id = data["image_id"]
         return f"https://cdn.bkan0n.com/{bucket_id}/{sizing_id}/{image_id}.png"
 
+    async def _check_if_user_needs_to_set_overwatch_username(self, user_id: int) -> bool:
+        query = "SELECT NOT EXISTS(SELECT 1 FROM user_overwatch_usernames WHERE user_id = $1 AND is_primary);"
+        return await self.bot.database.fetchval(query, user_id)
+
     @app_commands.command(name="submit-completion")
     @app_commands.guilds(discord.Object(id=constants.GUILD_ID))
     @app_commands.choices(
@@ -308,6 +313,17 @@ class Records(commands.Cog):
                 await channel_msg.delete()
                 await verification_msg.delete()
                 raise e
+
+        if await self._check_if_user_needs_to_set_overwatch_username(itx.user.id):
+            view = OverwatchUsernamesView(timeout=600)
+            view.message = await itx.followup.send(
+                f"Hey {itx.user.mention}, you haven't set a primary Overwatch Username. "
+                f"This helps us verify your records with better speed and accuracy.\n\n"
+                f"-# You can set additonal usernames (for alt accounts) and other notification settings on our website:"
+                f"https://genji.pk/",
+                view=view,
+                wait=True,
+            )
 
     @staticmethod
     async def _insert_map_rating(
