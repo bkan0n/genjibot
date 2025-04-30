@@ -28,19 +28,19 @@ log = logging.getLogger(__name__)
 class Genji(commands.Bot):
     """Genji bot class inherited from commands.Bot."""
 
-    database: database.Database
     rabbit: Rabbit
     firefox: arsenic.Session
     xp_enabled: bool
     xp_manager: XPManager
     notification_manager: NotificationService
 
-    def __init__(self, *, session: aiohttp.ClientSession) -> None:
+    def __init__(self, *, session: aiohttp.ClientSession, db: database.Database) -> None:
         super().__init__(
             "?",
             intents=self._generate_intents(),
             help_command=None,
         )
+        self.database = db
         self.session = session
         self.playtest_views: dict[int, PlaytestVoting] = {}
         self.persistent_views_added = False

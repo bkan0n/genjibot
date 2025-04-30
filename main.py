@@ -67,10 +67,8 @@ async def main() -> None:
         aiohttp.ClientSession() as http_session,
         database.DatabaseConnection(psql_dsn) as psql_connection,
     ):
-        bot = core.Genji(session=http_session)
-
         assert psql_connection
-        bot.database = database.Database(psql_connection)
+        bot = core.Genji(session=http_session, db=database.Database(psql_connection))
         bot.xp_manager = XPManager(bot)
 
         async with bot:
