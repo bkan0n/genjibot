@@ -18,24 +18,9 @@ class Tasks(commands.Cog):
     def __init__(self, bot: core.Genji) -> None:
         self.bot = bot
         log.info("Start- Updating global names...")
-        self._update_global_names.start()
         # self._playtest_auto_approve.start()
         # self._playtest_expiration_warning.start()
         # self._playtest_expiration.start()
-
-    @tasks.loop(hours=1)
-    async def _update_global_names(self) -> None:
-        await self.bot.wait_until_ready()
-        global_names = [(u.id, u.name) for u in self.bot.users if u.global_name is not None]
-        query = """
-            INSERT INTO user_global_names (user_id, global_name)
-            VALUES ($1, $2)
-            ON CONFLICT (user_id) DO UPDATE
-            SET global_name = excluded.global_name
-            WHERE user_global_names.global_name != excluded.global_name
-        """
-        log.debug("Updating global names...")
-        await self.bot.database.executemany(query, global_names)
 
     @tasks.loop(time=[datetime.time(0, 0, 0), datetime.time(12, 0, 0)])
     async def _playtest_auto_approve(self) -> None:
@@ -157,7 +142,12 @@ class Tasks(commands.Cog):
             )
             thread = guild.get_thread(row["thread_id"])
             if thread:
-                await thread.send(message)
+                await self.bot.notification_manager.notify_channel(
+                    thread,
+                    creator.id,
+                    constants.Notification.DM_ON_VERIFICATION,
+                    message,
+                )
             map_codes.append((row["map_code"],))
         await self.bot.database.executemany(
             "UPDATE map_submission_dates SET alerted = TRUE WHERE map_code = $1",

@@ -87,3 +87,42 @@ class NameChangeModal(discord.ui.Modal, title="Change Name"):
             self.name.value[:25],
             itx.user.id,
         )
+
+
+class OverwatchUsernamesView(discord.ui.View):
+    """Overwatch usernames view."""
+
+    message: discord.Message
+
+    @discord.ui.button(label="Add Overwatch Username", style=discord.ButtonStyle.green, row=1)
+    async def _add_overwatch_username(self, itx: discord.Interaction[core.Genji], button: discord.ui.Button) -> None:
+        """Add Overwatch username button callback."""
+        await itx.response.send_modal(OverwatchUsernameModal())
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+
+        await self.message.edit(view=self)
+
+
+class OverwatchUsernameModal(discord.ui.Modal, title="Add Overwatch Username"):
+    """Overwatch username modal."""
+
+    username = discord.ui.TextInput(
+        label="Overwatch Username",
+        style=discord.TextStyle.short,
+        placeholder=(
+            "Enter your Overwatch username. "
+            "You can ignore the discriminator (the trailing numbers including the # sign)"),
+        max_length=25,
+        required=True,
+    )
+
+    async def on_submit(self, itx: discord.Interaction[core.Genji]) -> None:
+        """Username modal callback."""
+        await itx.response.send_message(f"Added Overwatch username: {self.username.value}", ephemeral=True)
+        query = "INSERT INTO user_overwatch_usernames (user_id, username, is_primary) VALUES ($1, $2, $3);"
+        await itx.client.database.execute(query, itx.user.id, self.username.value, True)
+
+

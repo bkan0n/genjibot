@@ -18,6 +18,8 @@ class Personal(commands.Cog):
     @app_commands.guilds(discord.Object(id=constants.GUILD_ID))
     async def settings(self, itx: discord.Interaction[core.Genji]) -> None:
         """Change various settings like notifications and your display name."""
+        await itx.response.send_message("This feature has been disabled.")
+        return
         await itx.response.defer(ephemeral=True)
         query = "SELECT flags FROM users WHERE user_id = $1;"
         flags = await itx.client.database.fetchval(query, itx.user.id)

@@ -10,6 +10,7 @@ from discord.ext import commands
 
 import views
 from utils import constants, embeds, errors, models, transformers, utils
+from views import OverwatchUsernamesView
 
 if typing.TYPE_CHECKING:
     import asyncpg
@@ -163,6 +164,10 @@ class Records(commands.Cog):
         image_id = data["image_id"]
         return f"https://cdn.bkan0n.com/{bucket_id}/{sizing_id}/{image_id}.png"
 
+    async def _check_if_user_needs_to_set_overwatch_username(self, user_id: int) -> bool:
+        query = "SELECT NOT EXISTS(SELECT 1 FROM user_overwatch_usernames WHERE user_id = $1 AND is_primary);"
+        return await self.bot.database.fetchval(query, user_id)
+
     @app_commands.command(name="submit-completion")
     @app_commands.guilds(discord.Object(id=constants.GUILD_ID))
     @app_commands.choices(
@@ -272,11 +277,15 @@ class Records(commands.Cog):
             embed=embed,
         )
 
-        v_view = views.VerificationView()
-        verification_msg = await itx.client.get_channel(constants.VERIFICATION_QUEUE).send(
-            content="**ALERT:** VIDEO SUBMISSION" if video else None,
-            embed=embed,
+        also_known_as = await itx.client.database.fetch_all_user_names(itx.user.id)
+        content = (
+            f"**ALERT:** VIDEO SUBMISSION\nAlso known as: {','.join(also_known_as)}"
+            if video else ','.join(also_known_as)
         )
+        v_view = views.VerificationView()
+        verification_channel = itx.client.get_channel(constants.VERIFICATION_QUEUE)
+        assert isinstance(verification_channel, discord.TextChannel)
+        verification_msg = await verification_channel.send(content=content, embed=embed)
 
         await verification_msg.edit(view=v_view)
         async with self.bot.database.pool.acquire() as conn, conn.transaction():
@@ -304,6 +313,17 @@ class Records(commands.Cog):
                 await channel_msg.delete()
                 await verification_msg.delete()
                 raise e
+
+        if await self._check_if_user_needs_to_set_overwatch_username(itx.user.id):
+            view = OverwatchUsernamesView(timeout=600)
+            view.message = await itx.followup.send(
+                f"Hey {itx.user.mention}, you haven't set a primary Overwatch Username. "
+                f"This helps us verify your records with better speed and accuracy.\n\n"
+                f"-# You can set additonal usernames (for alt accounts) and other notification settings on our website:"
+                f"https://genji.pk/",
+                view=view,
+                wait=True,
+            )
 
     @staticmethod
     async def _insert_map_rating(
@@ -382,7 +402,7 @@ class Records(commands.Cog):
 
         query = """
             WITH base AS (
-                SELECT u.nickname,
+                SELECT coalesce(own.username, u.nickname) as nickname,
                        record,
                        screenshot,
                        video,
@@ -401,9 +421,11 @@ class Records(commands.Cog):
                     LEFT JOIN users u ON lr.user_id = u.user_id
                     LEFT JOIN maps m ON m.map_code = lr.map_code
                     LEFT JOIN map_ratings mr ON m.map_code = mr.map_code
+                    LEFT JOIN user_overwatch_usernames own 
+                            ON own.user_id = lr.user_id AND own.is_primary = true
                 WHERE lr.map_code = $1 AND mr.verified AND legacy IS TRUE
                 GROUP BY u.nickname, record, screenshot, video, lr.map_code,
-                         lr.channel_id, lr.message_id, m.map_name, legacy_medal, completion, inserted_at, lr.user_id
+                         lr.channel_id, lr.message_id, m.map_name, legacy_medal, completion, inserted_at, lr.user_id, own.username
                 ORDER BY record
             ),
             ranked AS (
@@ -453,7 +475,7 @@ class Records(commands.Cog):
             ),
             map_records AS (
                 SELECT
-                    u.nickname,
+                    coalesce(own.username, u.nickname) as nickname,
                     r.user_id,
                     record,
                     screenshot,
@@ -479,10 +501,12 @@ class Records(commands.Cog):
                         LEFT JOIN map_ratings mr ON m.map_code = mr.map_code
                         LEFT JOIN map_medals mm ON m.map_code = mm.map_code
                         LEFT JOIN map_creators_agg mca ON mca.map_code = m.map_code
+                        LEFT JOIN user_overwatch_usernames own 
+                            ON own.user_id = r.user_id AND own.is_primary = true
                     WHERE mr.verified AND r.verified AND ($1::text IS NULL OR $1::text = r.map_code) AND NOT legacy
                     GROUP BY u.nickname, record, screenshot, video, r.map_code,
                         r.channel_id, r.message_id, m.map_name, gold, silver,
-                        bronze, inserted_at, r.user_id, r.verified, completion, r.user_id, creators
+                        bronze, inserted_at, r.user_id, r.verified, completion, r.user_id, creators, own.username
             ), ranked_records AS (
                 SELECT
                     *,

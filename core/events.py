@@ -139,35 +139,55 @@ class BotEvents(commands.Cog):
             log.debug("Added persistent views.")
             self.bot.persistent_views_added = True
 
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member) -> None:
-        # Add user to DB
+    async def _insert_users_table(self, member: discord.Member) -> None:
         with contextlib.suppress(asyncpg.UniqueViolationError):
-            await self.bot.database.set(
-                "INSERT INTO users VALUES ($1, $2, true);",
-                member.id,
-                member.name[:25],
-            )
+            query = "INSERT INTO users (user_id, nickname, global_name) VALUES ($1, $2, $3);"
+            await self.bot.database.execute(query, member.id, member.nick, member.global_name)
 
-        log.debug(f"Adding user to database: {member.name}: {member.id}")
-        query = """
-            SELECT EXISTS(
-                SELECT 1 FROM maps
-                LEFT JOIN map_creators mc on maps.map_code = mc.map_code
-                WHERE user_id = $1
-            )
-        """
-        res = await self.bot.database.fetchval(query, member.id)
+    async def _check_if_member_is_map_creator(self, member: discord.Member) -> bool | None:
+        query = "SELECT EXISTS(SELECT 1 FROM map_creators WHERE user_id = $1);"
+        return await self.bot.database.fetchval(query, member.id)
 
-        if res and (
-            (map_maker := member.guild.get_role(constants.Roles.MAP_MAKER)) is not None
-            and map_maker not in member.roles
-        ):
+    async def _grant_map_maker(self, member: discord.Member) -> None:
+        is_map_creator = await self._check_if_member_is_map_creator(member)
+        map_maker = member.guild.get_role(constants.Roles.MAP_MAKER)
+        if is_map_creator and map_maker and map_maker not in member.roles:
             await member.add_roles(map_maker, reason="User rejoined. Re-granting map maker.")
-        if (ninja := member.guild.get_role(constants.Roles.NINJA)) is not None and ninja not in member.roles:
+
+    async def _grant_ninja_role(self, member: discord.Member) -> None:
+        ninja = member.guild.get_role(constants.Roles.NINJA)
+        if ninja is not None and ninja not in member.roles:
             await member.add_roles(ninja, reason="User joined. Granting Ninja.")
 
+    async def _grant_roles(self, member: discord.Member) -> None:
+        await self._grant_map_maker(member)
+        await self._grant_ninja_role(member)
         await utils.auto_skill_role(self.bot, member.guild, member)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member) -> None:
+        log.debug(f"Adding user to database: {member.global_name}: {member.id}")
+        await self._insert_users_table(member)
+        await self._grant_roles(member)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
+        if before.nick == after.nick:
+            return
+        query = """
+                INSERT INTO users (user_id, nickname)
+                VALUES ($1, $2)
+                ON CONFLICT (user_id) DO UPDATE SET nickname = $1;
+                """
+        await self.bot.database.execute(query, after.id, after.nick)
+
+    @commands.Cog.listener()
+    async def on_user_update(self, before: discord.User, after: discord.User) -> None:
+        if before.global_name == after.global_name:
+            return
+        query = """
+            
+        """
 
     @commands.Cog.listener()
     async def on_newsfeed_role(self, client: Genji, user: discord.Member, roles: list[discord.Role]) -> None:
