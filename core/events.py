@@ -144,12 +144,6 @@ class BotEvents(commands.Cog):
             query = "INSERT INTO users (user_id, nickname, global_name) VALUES ($1, $2, $3);"
             await self.bot.database.execute(query, member.id, member.nick, member.global_name)
 
-
-    async def _insert_user_data(self, member: discord.Member) -> None:
-        """Insert user data into database."""
-        await self._insert_users_table(member)
-        await self._insert_global_names_table(member)
-
     async def _check_if_member_is_map_creator(self, member: discord.Member) -> bool | None:
         query = "SELECT EXISTS(SELECT 1 FROM map_creators WHERE user_id = $1);"
         return await self.bot.database.fetchval(query, member.id)
@@ -173,7 +167,7 @@ class BotEvents(commands.Cog):
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         log.debug(f"Adding user to database: {member.global_name}: {member.id}")
-        await self._insert_user_data(member)
+        await self._insert_users_table(member)
         await self._grant_roles(member)
 
     @commands.Cog.listener()
