@@ -169,10 +169,6 @@ class Database:
         _connection = connection or self.pool
         await _connection.executemany(query, args)
 
-    async def fetch_user_flags(self, user_id: int) -> int:
-        query = "SELECT flags FROM users WHERE user_id = $1"
-        return await self.fetchval(query, user_id)
-
     async def fetch_nickname(self, user_id: int) -> str:
         query = """
             WITH default_name AS (
