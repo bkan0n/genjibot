@@ -206,7 +206,7 @@ class CreatorTransformer(app_commands.Transformer):
                 GROUP BY u.user_id, u.nickname, u.global_name, sim
                 ORDER BY sim DESC
             )
-            SELECT user_id, ARRAY(SELECT DISTINCT * FROM unnest(all_usernames)) FROM creator_names;
+            SELECT user_id, ARRAY(SELECT DISTINCT * FROM unnest(all_usernames)) AS all_usernames FROM creator_names;
         """
         results = await itx.client.database.fetch(query, current)
         return [
@@ -258,7 +258,7 @@ class AllUserTransformer(app_commands.Transformer):
             GROUP BY u.user_id, u.nickname, u.global_name, sim
             ORDER BY sim DESC
         )
-        SELECT user_id, ARRAY(SELECT DISTINCT * FROM unnest(all_usernames)) FROM user_names;
+        SELECT user_id, ARRAY(SELECT DISTINCT * FROM unnest(all_usernames)) AS all_usernames FROM user_names;
 
         """
         results = await itx.client.database.fetch(query, current)
