@@ -151,16 +151,53 @@ class CreatorTransformer(app_commands.Transformer):
 
     async def autocomplete(self, itx: discord.Interaction[core.Genji], current: str) -> list[app_commands.Choice[str]]:
         query = """
-            WITH creators AS (
-              SELECT u.user_id, nickname FROM users u
-              RIGHT JOIN map_creators mc ON u.user_id = mc.user_id
+            WITH creator_ids AS (
+                SELECT DISTINCT user_id FROM map_creators
+            ),
+            matched_names AS (
+                SELECT u.user_id, name
+                FROM users u
+                JOIN creator_ids c ON u.user_id = c.user_id
+                CROSS JOIN LATERAL (
+                    VALUES (u.nickname), (u.global_name)
+                ) AS name_list(name)
+                WHERE name % $1
+            
+                UNION
+            
+                SELECT o.user_id, o.username AS name
+                FROM user_overwatch_usernames o
+                JOIN creator_ids c ON o.user_id = c.user_id
+                WHERE o.username % $1
+            ),
+            ranked_creators AS (
+                SELECT user_id, MAX(similarity(name, $1)) AS sim
+                FROM matched_names
+                GROUP BY user_id
+                ORDER BY sim DESC
+                LIMIT 6
+            ),
+            creator_names AS (
+                SELECT
+                    u.user_id,
+                    ARRAY_REMOVE(
+                        ARRAY[
+                            u.nickname,
+                            u.global_name
+                        ] || ARRAY_AGG(DISTINCT own_all.username),
+                        NULL
+                    ) AS all_usernames
+                FROM ranked_creators rc
+                JOIN users u ON u.user_id = rc.user_id
+                LEFT JOIN user_overwatch_usernames own_all ON u.user_id = own_all.user_id
+                GROUP BY u.user_id, u.nickname, u.global_name, sim
+                ORDER BY sim DESC
             )
-            SELECT DISTINCT nickname, user_id, similarity(nickname, $1::text)
-            FROM creators ORDER BY similarity(nickname, $1::text) DESC LIMIT 6;
+            SELECT user_id, ARRAY(SELECT DISTINCT * FROM unnest(all_usernames)) FROM creator_names;
         """
         results = await itx.client.database.fetch(query, current)
         return [
-            app_commands.Choice(name=f"{row['nickname']} ({row['user_id']})", value=str(row["user_id"]))
+            app_commands.Choice(name=f"{', '.join(row['all_usernames'])} ({row['user_id']})"[:100], value=str(row["user_id"]))
             for row in results
         ]
 
@@ -170,10 +207,50 @@ class AllUserTransformer(app_commands.Transformer):
         return await transform_user(itx.client, value)
 
     async def autocomplete(self, itx: discord.Interaction[core.Genji], current: str) -> list[app_commands.Choice[str]]:
-        query = "SELECT user_id, nickname FROM USERS ORDER BY similarity(nickname, $1) DESC LIMIT 10;"
+        query = """
+        WITH matches AS (
+            SELECT u.user_id, name
+            FROM users u
+            CROSS JOIN LATERAL (
+                VALUES (u.nickname), (u.global_name)
+            ) AS name_list(name)
+            WHERE name % $1
+        
+            UNION
+        
+            SELECT o.user_id, o.username AS name
+            FROM user_overwatch_usernames o
+            WHERE o.username % $1
+        ),
+        ranked_users AS (
+            SELECT user_id, MAX(similarity(name, $1)) AS sim
+            FROM matches
+            GROUP BY user_id
+            ORDER BY sim DESC
+            LIMIT 10
+        ),
+        user_names AS (
+            SELECT
+                u.user_id,
+                ARRAY_REMOVE(
+                    ARRAY[
+                        u.nickname,
+                        u.global_name
+                    ] || ARRAY_AGG(DISTINCT own_all.username),
+                    NULL
+                ) AS all_usernames
+            FROM ranked_users ru
+            JOIN users u ON u.user_id = ru.user_id
+            LEFT JOIN user_overwatch_usernames own_all ON u.user_id = own_all.user_id
+            GROUP BY u.user_id, u.nickname, u.global_name, sim
+            ORDER BY sim DESC
+        )
+        SELECT user_id, ARRAY(SELECT DISTINCT * FROM unnest(all_usernames)) FROM user_names;
+
+        """
         results = await itx.client.database.fetch(query, current)
         return [
-            app_commands.Choice(name=f"{row['nickname']} ({row['user_id']})", value=str(row["user_id"]))
+            app_commands.Choice(name=f"{', '.join(row['all_usernames'])} ({row['user_id']})"[:100], value=str(row["user_id"]))
             for row in results
         ]
 
