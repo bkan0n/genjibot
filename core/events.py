@@ -141,15 +141,9 @@ class BotEvents(commands.Cog):
 
     async def _insert_users_table(self, member: discord.Member) -> None:
         with contextlib.suppress(asyncpg.UniqueViolationError):
-            query = "INSERT INTO users VALUES ($1, $2, true);"
-            await self.bot.database.execute(query, member.id, member.global_name[:25])
+            query = "INSERT INTO users (user_id, nickname, global_name) VALUES ($1, $2, $3);"
+            await self.bot.database.execute(query, member.id, member.nick, member.global_name)
 
-    async def _insert_global_names_table(self, member: discord.Member) -> None:
-        query = """
-            INSERT INTO user_global_names VALUES ($1, $2)
-            ON CONFLICT (user_id) DO UPDATE SET global_name = $2;
-        """
-        await self.bot.database.execute(query, member.id, member.global_name[:25])
 
     async def _insert_user_data(self, member: discord.Member) -> None:
         """Insert user data into database."""
@@ -181,6 +175,25 @@ class BotEvents(commands.Cog):
         log.debug(f"Adding user to database: {member.global_name}: {member.id}")
         await self._insert_user_data(member)
         await self._grant_roles(member)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
+        if before.nick == after.nick:
+            return
+        query = """
+                INSERT INTO users (user_id, nickname)
+                VALUES ($1, $2)
+                ON CONFLICT (user_id) DO UPDATE SET nickname = $1;
+                """
+        await self.bot.database.execute(query, after.id, after.nick)
+
+    @commands.Cog.listener()
+    async def on_user_update(self, before: discord.User, after: discord.User) -> None:
+        if before.global_name == after.global_name:
+            return
+        query = """
+            
+        """
 
     @commands.Cog.listener()
     async def on_newsfeed_role(self, client: Genji, user: discord.Member, roles: list[discord.Role]) -> None:
