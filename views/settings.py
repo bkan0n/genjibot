@@ -112,9 +112,7 @@ class OverwatchUsernameModal(discord.ui.Modal, title="Add Overwatch Username"):
     username = discord.ui.TextInput(
         label="Overwatch Username",
         style=discord.TextStyle.short,
-        placeholder=(
-            "Enter your Overwatch username. "
-            "You can ignore the discriminator (the trailing numbers including the # sign)"),
+        placeholder="Enter your Overwatch username.",
         max_length=25,
         required=True,
     )
