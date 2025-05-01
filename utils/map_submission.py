@@ -124,6 +124,7 @@ async def map_submission_second_step(
     mod: bool,
 ) -> None:
     """Create playtest thread."""
+    await data.insert_all(itx, mod)
     if not mod:
         embed.title = "Calling all Playtesters!"
         view = views.PlaytestVoting(
@@ -153,7 +154,7 @@ async def map_submission_second_step(
         )
 
         await data.insert_playtest(itx, thread.id, thread_msg.id, playtest_message.id)
-    await data.insert_all(itx, mod)
+
 
     if not mod:
         map_maker = itx.guild.get_role(constants.Roles.MAP_MAKER)
