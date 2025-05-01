@@ -316,13 +316,12 @@ class Records(commands.Cog):
 
         if await self._check_if_user_needs_to_set_overwatch_username(itx.user.id):
             view = OverwatchUsernamesView(timeout=600)
-            view.message = await itx.followup.send(
+            view.message = await itx.channel.send(
                 f"Hey {itx.user.mention}, you haven't set a primary Overwatch Username. "
                 f"This helps us verify your records with better speed and accuracy.\n\n"
                 f"-# You can set additonal usernames (for alt accounts) and other notification settings on our website:"
                 f"https://genji.pk/",
                 view=view,
-                wait=True,
             )
 
     @staticmethod

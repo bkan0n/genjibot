@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typing
 
+import asyncpg
 import discord.ui
 
 from utils import utils
@@ -100,10 +101,7 @@ class OverwatchUsernamesView(discord.ui.View):
         await itx.response.send_modal(OverwatchUsernameModal())
 
     async def on_timeout(self) -> None:
-        for item in self.children:
-            item.disabled = True
-
-        await self.message.edit(view=self)
+        await self.message.delete()
 
 
 class OverwatchUsernameModal(discord.ui.Modal, title="Add Overwatch Username"):
@@ -121,6 +119,8 @@ class OverwatchUsernameModal(discord.ui.Modal, title="Add Overwatch Username"):
         """Username modal callback."""
         await itx.response.send_message(f"Added Overwatch username: {self.username.value}", ephemeral=True)
         query = "INSERT INTO user_overwatch_usernames (user_id, username, is_primary) VALUES ($1, $2, $3);"
-        await itx.client.database.execute(query, itx.user.id, self.username.value, True)
-
+        try:
+            await itx.client.database.execute(query, itx.user.id, self.username.value, True)
+        except asyncpg.UniqueViolationError:
+            ...
 
