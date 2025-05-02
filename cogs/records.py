@@ -280,7 +280,7 @@ class Records(commands.Cog):
         also_known_as = await itx.client.database.fetch_all_user_names(itx.user.id)
         content = (
             f"**ALERT:** VIDEO SUBMISSION\nAlso known as: {','.join(also_known_as)}"
-            if video else "Also known as: {','.join(also_known_as)}"
+            if video else f"Also known as: {','.join(also_known_as)}"
         )
         v_view = views.VerificationView()
         verification_channel = itx.client.get_channel(constants.VERIFICATION_QUEUE)
