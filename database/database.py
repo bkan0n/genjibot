@@ -202,16 +202,16 @@ class Database:
         return [x["name"] for x in res]
 
     async def fetch_map_restrictions(self) -> list[str]:
-        query = "SELECT restriction FROM all_map_restrictions ORDER BY order_num"
+        query = "SELECT name FROM all_map_restrictions ORDER BY order_num"
         res = await self.fetch(query)
         if not res:
             return []
-        return [x["restriction"] for x in res]
+        return [x["name"] for x in res]
 
     async def fetch_map_mechanics(self) -> list[str]:
-        query = "SELECT mechanic FROM all_map_mechanics ORDER BY order_num"
+        query = "SELECT name FROM all_map_mechanics ORDER BY order_num"
         res = await self.fetch(query)
         if not res:
             return []
-        return [x["mechanic"] for x in res]
+        return [x["name"] for x in res]
 
