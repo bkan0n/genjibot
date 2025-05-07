@@ -220,9 +220,9 @@ class MapModel(msgspec.Struct):
 
     @property
     def categories_str(self) -> str | None:
-        self.map_types = self._remove_nulls(self.category)
-        if self.map_types:
-            return ", ".join(self.map_types)
+        self.category = self._remove_nulls(self.category)
+        if self.category:
+            return ", ".join(self.category)
         return None
 
     @property
