@@ -127,11 +127,11 @@ class PlaylistSubmissionView(discord.ui.View):
         inst.add_item(difficulty_dropdown)
         return inst
 
-    @discord.ui.button(label="Submit", style=discord.ButtonStyle.success, row=5)
+    @discord.ui.button(label="Submit", style=discord.ButtonStyle.success, row=4)
     async def submit(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         self.value = True
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.danger, row=5)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.danger, row=4)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         self.stop()
 
