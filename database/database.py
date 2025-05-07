@@ -193,3 +193,25 @@ class Database:
     async def is_existing_map_code(self, map_code: str) -> bool:
         query = "SELECT EXISTS(SELECT map_code FROM maps WHERE map_code = $1)"
         return await self.fetchval(query, map_code)
+
+    async def fetch_map_categories(self) -> list[str]:
+        query = "SELECT name FROM all_map_types ORDER BY order_num"
+        res = await self.fetch(query)
+        if not res:
+            return []
+        return [x["name"] for x in res]
+
+    async def fetch_map_restrictions(self) -> list[str]:
+        query = "SELECT restriction FROM all_map_restrictions ORDER BY order_num"
+        res = await self.fetch(query)
+        if not res:
+            return []
+        return [x["restriction"] for x in res]
+
+    async def fetch_map_mechanics(self) -> list[str]:
+        query = "SELECT mechanic FROM all_map_mechanics ORDER BY order_num"
+        res = await self.fetch(query)
+        if not res:
+            return []
+        return [x["mechanic"] for x in res]
+

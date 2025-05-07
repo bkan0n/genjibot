@@ -78,6 +78,8 @@ class Rabbit:
                 case "new_map":
                     decoded_json = msgspec.json.decode(message.body, type=MapSubmissionBody)
                     _data = decoded_json.rabbit_data
+                    # TODO: Check if MOD, else send to playtestmanager
+                    return
                 case "bulk_archive" | "bulk_unarchive":
                     decoded_json = msgspec.json.decode(message.body, type=list[BulkArchiveMapBody])
                     _data = [_d.rabbit_data for _d in decoded_json]
