@@ -18,7 +18,7 @@ class Playlist(commands.Cog):
     def __init__(self, bot: core.Genji) -> None:
         self.bot = bot
 
-    @app_commands.command(name="submit-playlist")
+    @app_commands.command(name="submit-playtest")
     @app_commands.guilds(discord.Object(id=constants.GUILD_ID))
     async def submit_playlist(
         self,
@@ -67,6 +67,7 @@ class Playlist(commands.Cog):
         )
         await view.wait()
 
+
 class PlaylistSubmissionView(discord.ui.View):
     _initialized: bool = False
 
@@ -82,12 +83,12 @@ class PlaylistSubmissionView(discord.ui.View):
 
     def convert_values_to_select(self, values: list[str]) -> list[discord.SelectOption]:
         """Convert values to select options."""
-        return [
-            discord.SelectOption(label=value, value=value) for value in values
-        ]
+        return [discord.SelectOption(label=value, value=value) for value in values]
 
     @classmethod
-    async def async_init(cls, bot: core.Genji, db: database.Database, user_id: int, data: MapModel) -> PlaylistSubmissionView:
+    async def async_init(
+        cls, bot: core.Genji, db: database.Database, user_id: int, data: MapModel
+    ) -> PlaylistSubmissionView:
         """Initialize the view."""
         cls._initialized = True
         inst = cls(bot, db, user_id, data)
@@ -122,6 +123,7 @@ class PlaylistSubmissionView(discord.ui.View):
             options=difficulty_options,
             placeholder="Select map difficulty",
             dropdown_type="difficulty",
+            max_options=1,
         )
         inst.add_item(difficulty_dropdown)
         return inst
@@ -136,13 +138,19 @@ class PlaylistSubmissionView(discord.ui.View):
 
 
 class PlaytestSubmissionDropdown(discord.ui.Select["PlaylistSubmissionView"]):
-    def __init__(self, options: list[discord.SelectOption], placeholder: str, dropdown_type: str) -> None:
+    def __init__(
+        self,
+        options: list[discord.SelectOption],
+        placeholder: str,
+        dropdown_type: str,
+        max_options: int | None = None,
+    ) -> None:
         self.dropdown_type = dropdown_type
         super().__init__(
             placeholder=placeholder,
             options=options,
             min_values=1,
-            max_values=len(options),
+            max_values=max_options or len(options),
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -152,12 +160,13 @@ class PlaytestSubmissionDropdown(discord.ui.Select["PlaylistSubmissionView"]):
             self.view.data.difficulty = self.values[0]
         else:
             setattr(self.view.data, self.dropdown_type, self.values)
-            embed =self.view.data.build_embed()
+        embed = self.view.data.build_embed()
         await interaction.response.edit_message(view=self.view, embed=embed)
 
     def _default_selected_values(self) -> None:
         for option in self.options:
             option.default = option.value in self.values
+
 
 class MapModel(msgspec.Struct):
     code: str
@@ -248,6 +257,7 @@ class MapModel(msgspec.Struct):
         if not formatted_medals:
             return ""
         return " | ".join(formatted_medals)
+
 
 async def setup(bot: core.Genji) -> None:
     """Load the cog."""
