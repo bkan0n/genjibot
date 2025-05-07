@@ -1,1 +1,1 @@
-import manager
+from playtest.manager import PlaytestManager
