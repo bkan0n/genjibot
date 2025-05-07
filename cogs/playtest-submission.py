@@ -60,9 +60,8 @@ class Playlist(commands.Cog):
         )
 
         view = await PlaylistSubmissionView.async_init(self.bot, self.bot.database, itx.user.id, data)
-        await itx.response.send_message(
-            "Is this information correct?",
-            ephemeral=True,
+        await itx.edit_original_response(
+            content="Is this information correct?",
             embed=data.build_embed(),
             view=view,
         )
