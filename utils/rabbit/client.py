@@ -9,6 +9,8 @@ import msgspec
 from aio_pika import Channel, DeliveryMode, Message, connect_robust
 from aio_pika.pool import Pool
 
+from utils.maps import MapModel
+
 from ..newsfeed import NewsfeedEvent
 from .models import BulkArchiveMapBody, MapSubmissionBody
 
@@ -75,9 +77,10 @@ class Rabbit:
                 return
             assert isinstance(x_type, str)
             match x_type:
-                case "new_map":
-                    decoded_json = msgspec.json.decode(message.body, type=MapSubmissionBody)
-                    _data = decoded_json.rabbit_data
+                case "playtest":
+                    decoded_json = msgspec.json.decode(message.body, type=MapModel)
+                    # _data = decoded_json.rabbit_data
+                    await self._bot.playtest_manager.add_playtest(decoded_json)
                     # TODO: Check if MOD, else send to playtestmanager
                     return
                 case "bulk_archive" | "bulk_unarchive":

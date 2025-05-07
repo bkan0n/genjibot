@@ -7,6 +7,7 @@ import discord
 
 if TYPE_CHECKING:
     import core
+    from utils.maps import MapModel
 
 
 PLAYTEST_FORUM_ID = 1369672124352040970
@@ -18,18 +19,18 @@ class PlaytestManager:
         self._db = bot.database
         self._bot = bot
 
-    async def add_playtest(self, rabbit_data: dict) -> None:
+    async def add_playtest(self, data: MapModel) -> None:
         """Add playtest forum."""
         try:
             forum = self._bot.get_guild(GENJI_GUILD_ID).get_channel(PLAYTEST_FORUM_ID)
             assert isinstance(forum, discord.ForumChannel)
         except AttributeError as e:
-            e.add_note(f"Adding playtest failed, guild not found ({GENJI_GUILD_ID}): {rabbit_data=}")
+            e.add_note(f"Adding playtest failed, guild not found ({GENJI_GUILD_ID}): {data=}")
             raise
 
         await forum.create_thread(
-            name=rabbit_data["name"],
-            content=rabbit_data["message"],
+            name=f"Playtest: {data.code} {data.name} by {data.creator_ids[0]}",
+            content="testing",
             reason="Playtest () created",
         )
 

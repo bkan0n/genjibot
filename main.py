@@ -10,6 +10,7 @@ import sentry_sdk
 
 import core
 import database
+import playtest
 from utils.xp import XPManager
 
 SENTRY_TOKEN = os.getenv("SENTRY_TOKEN")
@@ -70,6 +71,7 @@ async def main() -> None:
         assert psql_connection
         bot = core.Genji(session=http_session, db=database.Database(psql_connection))
         bot.xp_manager = XPManager(bot)
+        bot.playtest_manager = playtest.manager.PlaytestManager(bot)
 
         async with bot:
             with contextlib.suppress(discord.errors.ConnectionClosed):

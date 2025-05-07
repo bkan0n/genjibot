@@ -8,6 +8,7 @@ import discord
 from discord.ext import commands
 
 import cogs
+from playtest.manager import PlaytestManager
 from utils.newsfeed import EventHandler
 from utils.notifications import NotificationService
 from utils.rabbit.client import Rabbit
@@ -33,6 +34,7 @@ class Genji(commands.Bot):
     xp_enabled: bool
     xp_manager: XPManager
     notification_manager: NotificationService
+    playtest_manager: PlaytestManager
 
     def __init__(self, *, session: aiohttp.ClientSession, db: database.Database) -> None:
         super().__init__(

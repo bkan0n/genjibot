@@ -5,8 +5,9 @@ import re
 import typing
 
 import discord
+import msgspec
 
-from utils import constants, formatter, ranks, utils
+from . import constants, formatter, ranks, utils
 
 if typing.TYPE_CHECKING:
     import asyncpg
@@ -495,3 +496,112 @@ class MapEmbedData:
             res += "\n"
 
         return self._playtest + res
+
+
+class MapModel(msgspec.Struct):
+    code: str
+    name: str
+    checkpoints: int
+    creator_ids: list[int]
+    description: str = ""
+    guide_url: str = ""
+    gold: float = 0
+    silver: float = 0
+    bronze: float = 0
+    category: list[str] = []
+    difficulty: str = ""
+    mechanics: list[str] = []
+    restrictions: list[str] = []
+
+    def build_embed(self) -> discord.Embed:
+        content = formatter.Formatter(self.to_format_dict()).format_map()
+        embed = discord.Embed(
+            title=f"Map Submission: {self.name}",
+            description=content,
+            color=MAP_DATA[self.name].COLOR,
+        )
+        embed.set_image(url=MAP_DATA[self.name].IMAGE_URL)
+        return embed
+
+    def to_format_dict(self) -> dict[str, str | None]:
+        return {
+            "Code": self.code,
+            "Map": self.name,
+            "Category": self.categories_str,
+            "Checkpoints": str(self.checkpoints),
+            "Difficulty": self.difficulty,
+            "Mechanics": self.mechanics_str,
+            "Restrictions": self.restrictions_str,
+            "Guide": self.guide_str,
+            "Medals": self.medals_str,
+            "Desc": self.description,
+        }
+
+    def to_api_dict(self) -> dict[str, str | float | list[str] | None]:
+        return {
+            "code": self.code,
+            "name": self.name,
+            "category": self.category,
+            "checkpoints": self.checkpoints,
+            "creator_ids": [],
+            "difficulty": self.difficulty,
+            "mechanics": self.mechanics,
+            "restrictions": self.restrictions,
+            "guide_url": self.guide_url,
+            "gold": self.gold,
+            "silver": self.silver,
+            "bronze": self.bronze,
+            "description": self.description,
+        }
+
+    @staticmethod
+    def _remove_nulls(sequence: list[str] | None) -> list[str]:
+        if sequence is None:
+            return []
+        return [x for x in sequence if x is not None]
+
+    @property
+    def mechanics_str(self) -> str | None:
+        self.mechanics = self._remove_nulls(self.mechanics)
+        if self.mechanics:
+            return ", ".join(self.mechanics)
+        return None
+
+    @property
+    def restrictions_str(self) -> str | None:
+        self.restrictions = self._remove_nulls(self.restrictions)
+        if self.restrictions:
+            return ", ".join(self.restrictions)
+        return None
+
+    @property
+    def categories_str(self) -> str | None:
+        self.category = self._remove_nulls(self.category)
+        if self.category:
+            return ", ".join(self.category)
+        return None
+
+    @property
+    def guide_str(self) -> str | None:
+        all_guides = []
+        for count, link in enumerate(self.guide_url, start=1):
+            if link:
+                all_guides.append(f"[Link {count}]({link})")
+        return ", ".join(all_guides)
+
+    @property
+    def medals_str(self) -> str:
+        formatted_medals = []
+
+        if self.gold:
+            formatted_medals.append(f"{constants.FULLY_VERIFIED_GOLD} {self.gold}")
+
+        if self.silver:
+            formatted_medals.append(f"{constants.FULLY_VERIFIED_SILVER} {self.silver}")
+
+        if self.bronze:
+            formatted_medals.append(f"{constants.FULLY_VERIFIED_BRONZE} {self.bronze}")
+
+        if not formatted_medals:
+            return ""
+        return " | ".join(formatted_medals)
