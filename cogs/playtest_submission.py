@@ -163,7 +163,7 @@ class PlaylistSubmissionView(discord.ui.View):
         self.stop()
         await interaction.response.edit_message(content="Submitted!", view=None)
         await self.bot.session.post(
-            "https://api.genji.pk/v2/maps/playtests/",
+            "https://apitest.genji.pk/v2/maps/playtests/",
             json=self.data.to_api_dict(),
             headers={"X-API-KEY": os.getenv("GENJI_API_KEY", ""), "Content-Type": "application/json"},
         )
