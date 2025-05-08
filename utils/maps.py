@@ -537,13 +537,13 @@ class MapModel(msgspec.Struct):
             "Desc": self.description,
         }
 
-    def to_api_dict(self) -> dict[str, str | float | list[str] | None]:
+    def to_api_dict(self) -> dict[str, typing.Any]:
         return {
             "code": self.code,
             "name": self.name,
             "category": self.category,
             "checkpoints": self.checkpoints,
-            "creator_ids": [],
+            "creator_ids": self.creator_ids,
             "difficulty": self.difficulty,
             "mechanics": self.mechanics,
             "restrictions": self.restrictions,
