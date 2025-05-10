@@ -11,3 +11,5 @@ msgspec
 sentry-sdk
 aio-pika==9.4.3
 playwright
+altair
+pandas

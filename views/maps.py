@@ -406,7 +406,8 @@ class PlaytestVoting(discord.ui.View):
         self.stop()
         await self._process_xp()
         record = await self.get_author_db_row()
-        await self.delete_playtest_thread(record.thread_id)
+        await self.lock_and_archive_thread(record.thread_id)
+        await self.delete_playtest_thread(record.thread_id)  # this deletes the message
         author = self.data.creator
         votes_db_rows = await self.get_votes_for_map()
         await self.post_new_map(author, record.original_msg, votes_db_rows)
@@ -425,7 +426,6 @@ class PlaytestVoting(discord.ui.View):
                 .delete()
             )
 
-        await self.delete_playtest_db_entry()
 
     async def _process_xp(self) -> None:
         if self.client.xp_enabled and self.data.creator:
@@ -456,7 +456,7 @@ class PlaytestVoting(discord.ui.View):
         await self.client.get_channel(constants.PLAYTEST).get_thread(thread_id).edit(archived=True, locked=True)
 
     async def delete_playtest_thread(self, thread_id: int) -> None:
-        await self.client.get_channel(constants.PLAYTEST).get_thread(thread_id).delete()
+        await self.client.get_channel(constants.PLAYTEST).get_partial_message(thread_id).delete()
 
     async def get_votes_for_map(self) -> list[asyncpg.Record]:
         query = "SELECT * FROM playtest WHERE map_code=$1;"
@@ -679,7 +679,6 @@ class PlaytestVoting(discord.ui.View):
 
         await self.post_new_map(author, record.original_msg, votes_db_rows)
         await self.increment_playtest_count(votes_db_rows)
-        await self.delete_playtest_db_entry()
         itx.client.playtest_views.pop(itx.message.id)
 
     async def force_deny(self, itx: discord.Interaction[core.Genji]) -> None:

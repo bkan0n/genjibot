@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import discord
+import msgspec
+from discord import Interaction
+from discord._types import ClientT
+
+import database
+from playtest.playtest_graph import VoteHistogram
+from utils import maps, ranks
 
 if TYPE_CHECKING:
     import core
@@ -13,6 +20,12 @@ if TYPE_CHECKING:
 PLAYTEST_FORUM_ID = 1369672124352040970
 GENJI_GUILD_ID = 842778964673953812
 GENJI_API_KEY: str = os.getenv("GENJI_API_KEY", "")
+
+
+class PlaytestMetadata(msgspec.Struct):
+    thread_id: int
+    map_id: int
+    initial_difficulty: str
 
 class PlaytestManager:
     def __init__(self, bot: core.Genji) -> None:
@@ -28,25 +41,71 @@ class PlaytestManager:
             e.add_note(f"Adding playtest failed, guild not found ({GENJI_GUILD_ID}): {data=}")
             raise
 
-        await forum.create_thread(
-            name=f"Playtest: {data.code} {data.name} by {data.creator_ids[0]}",
+        difficulty_value = ranks.ALL_DIFFICULTY_RANGES_MIDPOINT[data.difficulty]
+        hist = VoteHistogram([difficulty_value])
+        png_buffer = await hist.export_png_bytes_async()
+        file = discord.File(fp=png_buffer, filename="vote_hist.png")
+
+        thread, _ = await forum.create_thread(
+            name=f"Playtest: {data.code} {data.name} by {data.creator_names[0]}",
             content="testing",
-            reason="Playtest () created",
+            embed=data.build_embed(),
+            reason="Playtest test created",
+            view=PlaytestVotingView(),
+            file=file,
         )
 
-    async def _insert_playtest_data(self, rabbit_data: dict) -> None:
+        playtest_data = PlaytestMetadata(
+            thread_id=thread.id,
+            map_id=data.map_id,
+            initial_difficulty=data.difficulty,
+        )
+        #await self._insert_playtest_data(playtest_data)
+
+    async def _insert_playtest_data(self, playtest_metadata: PlaytestMetadata) -> None:
         """Insert playtest data into the database."""
         await self._bot.session.post(
-            "https://api.genji.pk/v2/maps/playtests/",
-            json={
-                "playtest_id": rabbit_data["playtest_id"],
-                "name": rabbit_data["name"],
-                "message": rabbit_data["message"],
-                "date": rabbit_data["date"],
-            },
+            "https://apitest.genji.pk/v2/maps/playtests/metadata",
+            json=msgspec.json.encode(playtest_metadata),
             headers={
                 "X-API-KEY": GENJI_API_KEY,
                 "Content-Type": "application/json",
             },
 
         )
+
+
+class DifficultyRatingSelect(discord.ui.Select):
+    """Select difficulty rating."""
+
+    def __init__(self):
+        options = [
+            discord.SelectOption(value=x, label=x) for x in ranks.DIFFICULTIES_EXT
+        ]
+        super().__init__(options=options, placeholder="What difficulty would you rate this map?")
+
+    async def callback(self, interaction: Interaction) -> Any:
+        ...
+
+
+class ModCommandsSelect(discord.ui.Select):
+    """Select mod commands."""
+
+    def __init__(self):
+        super().__init__()
+
+
+class PlaytestVotingView(discord.ui.View):
+    """View for playtest voting."""
+
+    def __init__(
+        self,
+        # bot: core.Genji, db: database.Database, data: maps.MapModel
+    ) -> None:
+        super().__init__(timeout=300)
+        # self.bot = bot
+        # self.db = db
+        # self.data = data
+        self.add_item(DifficultyRatingSelect())
+        # self.add_item(ModCommandsSelect())
+

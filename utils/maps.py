@@ -512,6 +512,10 @@ class MapModel(msgspec.Struct):
     difficulty: str = ""
     mechanics: list[str] = []
     restrictions: list[str] = []
+    # These are fetched from the db during the api call
+    map_id: int = 0
+    creator_names: list[str] = []
+    creator_discord_tags: list[str] = []
 
     def build_embed(self) -> discord.Embed:
         content = formatter.Formatter(self.to_format_dict()).format_map()
@@ -521,11 +525,13 @@ class MapModel(msgspec.Struct):
             color=MAP_DATA[self.name].COLOR,
         )
         embed.set_image(url=MAP_DATA[self.name].IMAGE_URL)
+        embed.set_footer(text=f"Map ID: {self.map_id}")
         return embed
 
     def to_format_dict(self) -> dict[str, str | None]:
         return {
             "Code": self.code,
+            "Creator": discord.utils.escape_markdown(', '.join(self.creator_names)),
             "Map": self.name,
             "Category": self.categories_str,
             "Checkpoints": str(self.checkpoints),
