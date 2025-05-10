@@ -8,7 +8,7 @@ import discord
 import msgspec
 
 from . import constants, formatter, ranks, utils
-from .utils import sanitize_string_no_spaces
+
 
 if typing.TYPE_CHECKING:
     import asyncpg
@@ -533,7 +533,7 @@ class MapModel(msgspec.Struct):
         return embed
 
     def map_banner(self) -> str:
-        sanitized_name = sanitize_string_no_spaces(self.name)
+        sanitized_name = utils.sanitize_string_no_spaces(self.name)
         return f"https://bkan0n.com/assets/images/map_banners/{sanitized_name}.png"
 
     def to_format_dict(self) -> dict[str, str | None]:
