@@ -123,7 +123,7 @@ class PlaylistSubmissionView(discord.ui.View):
         cls._initialized = True
         inst = cls(bot, db, user_id, data)
 
-        categories = await inst.db.fetch_map_restrictions()
+        categories = await inst.db.fetch_map_categories()
         category_options = inst.convert_values_to_select(categories)
         category_dropdown = PlaytestSubmissionDropdown(
             options=category_options,
@@ -131,7 +131,7 @@ class PlaylistSubmissionView(discord.ui.View):
             dropdown_type="category",
         )
         inst.add_item(category_dropdown)
-        restrictions = await inst.db.fetch_map_categories()
+        restrictions = await inst.db.fetch_map_restrictions()
         restriction_options = inst.convert_values_to_select(restrictions)
         restrictions_dropdown = PlaytestSubmissionDropdown(
             options=restriction_options,
