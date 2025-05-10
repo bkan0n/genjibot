@@ -132,7 +132,7 @@ class VoteHistogram:
     async def export_png_bytes_async(self, scale_factor: float = 2.0) -> io.BytesIO:
         """Asynchronously render the chart to PNG bytes without blocking the event loop."""
         # Offload the blocking .to_image(...) call
-        png_bytes = await asyncio.to_thread(self.build_chart().to_image, format="png", scale_factor=scale_factor)
+        png_bytes = await asyncio.to_thread(self.build_chart().save, format="png", scale_factor=scale_factor)
         buf = io.BytesIO(png_bytes)
         buf.seek(0)
         return buf
