@@ -13,3 +13,4 @@ aio-pika==9.4.3
 playwright
 altair
 pandas
+vl-convert-python
