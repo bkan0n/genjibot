@@ -54,7 +54,7 @@ class Playlist(commands.Cog):
             name=map_name,
             checkpoints=checkpoint_count,
             description=description,
-            guide_url=guide_url,
+            guide_urls=[guide_url],
             gold=gold,
             silver=silver,
             bronze=bronze,

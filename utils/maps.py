@@ -504,7 +504,7 @@ class MapModel(msgspec.Struct):
     checkpoints: int
     creator_ids: list[int]
     description: str = ""
-    guide_url: str = ""
+    guide_urls: list[str] = []
     gold: float = 0
     silver: float = 0
     bronze: float = 0
@@ -553,7 +553,7 @@ class MapModel(msgspec.Struct):
             "difficulty": self.difficulty,
             "mechanics": self.mechanics,
             "restrictions": self.restrictions,
-            "guide_url": self.guide_url,
+            "guide_urls": self.guide_urls,
             "gold": self.gold,
             "silver": self.silver,
             "bronze": self.bronze,
@@ -590,7 +590,7 @@ class MapModel(msgspec.Struct):
     @property
     def guide_str(self) -> str | None:
         all_guides = []
-        for count, link in enumerate(self.guide_url, start=1):
+        for count, link in enumerate(self.guide_urls, start=1):
             if link:
                 all_guides.append(f"[Link {count}]({link})")
         return ", ".join(all_guides)
