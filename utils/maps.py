@@ -8,6 +8,7 @@ import discord
 import msgspec
 
 from . import constants, formatter, ranks, utils
+from .utils import sanitize_string_no_spaces
 
 if typing.TYPE_CHECKING:
     import asyncpg
@@ -517,6 +518,9 @@ class MapModel(msgspec.Struct):
     creator_names: list[str] = []
     creator_discord_tags: list[str] = []
 
+    def build_content(self) -> str:
+        return formatter.Formatter(self.to_format_dict()).format_map()
+
     def build_embed(self) -> discord.Embed:
         content = formatter.Formatter(self.to_format_dict()).format_map()
         embed = discord.Embed(
@@ -527,6 +531,10 @@ class MapModel(msgspec.Struct):
         embed.set_image(url=MAP_DATA[self.name].IMAGE_URL)
         embed.set_footer(text=f"Map ID: {self.map_id}")
         return embed
+
+    def map_banner(self) -> str:
+        sanitized_name = sanitize_string_no_spaces(self.name)
+        return f"https://bkan0n.com/assets/images/map_banners/{sanitized_name}.png"
 
     def to_format_dict(self) -> dict[str, str | None]:
         return {

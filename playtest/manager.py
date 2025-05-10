@@ -48,10 +48,8 @@ class PlaytestManager:
 
         thread, _ = await forum.create_thread(
             name=f"Playtest: {data.code} {data.name} by {data.creator_names[0]}",
-            content="testing",
-            embed=data.build_embed(),
             reason="Playtest test created",
-            view=PlaytestVotingView(),
+            view=PlaytestComponentsV2View(data),
             file=file,
         )
 
@@ -108,4 +106,28 @@ class PlaytestVotingView(discord.ui.View):
         # self.data = data
         self.add_item(DifficultyRatingSelect())
         # self.add_item(ModCommandsSelect())
+
+
+class PlaytestLayoutViewGallery(discord.ui.MediaGallery):
+    def __init__(self, url: str) -> None:
+        super().__init__()
+        self.media_item = discord.MediaGalleryItem(url)
+        self.add_item(self.media_item)
+
+
+class PlaytestComponentsV2View(discord.ui.LayoutView):
+
+    def __init__(self, data: MapModel) -> None:
+        super().__init__(timeout=None)
+        self.data = data
+
+        data_section = discord.ui.Container(
+            PlaytestLayoutViewGallery(data.map_banner()),
+            discord.ui.TextDisplay(content=data.build_content()),
+            discord.ui.MediaGallery(
+                discord.MediaGalleryItem("attachment://vote_hist.png"),
+            ),
+            discord.ui.ActionRow(DifficultyRatingSelect()),
+        )
+        self.add_item(data_section)
 

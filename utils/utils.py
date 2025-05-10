@@ -5,6 +5,7 @@ import contextlib
 import enum
 import logging
 import operator
+import re
 import typing
 
 import discord
@@ -372,3 +373,11 @@ class SettingFlags(enum.IntFlag):
 
     def get_new_flag(self, value: int) -> int:
         return self.value ^ value
+
+
+def sanitize_string_no_spaces(string: str | None) -> str:
+    """Sanitize string."""
+    if not string:
+        return ""
+    string = re.sub(r"[^a-zA-Z0-9]", "", string)
+    return string.lower().strip().replace(" ", "")
