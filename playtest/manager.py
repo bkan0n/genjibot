@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import discord
 import msgspec
@@ -95,26 +95,36 @@ class DifficultyRatingSelect(discord.ui.Select):
         ...
 
 
+class ModCommandsTuple(NamedTuple):
+    label: str
+    description: str
 
-ModOnlyOptions = {
-    "Force Accept": "Force submission through, overwriting difficulty votes.",
-    "Force Deny": "Deny submission, deleting it and any associated completions/votes.",
-    "Approve Submission": "Approve map submission, signing off on all difficulty votes.",
-    "Start Process Over": "Remove all completions and votes for a map without deleting the submission.",
-    "Remove Completions": "Remove all completions for a map without deleting the submission.",
-    "Remove Votes": "Remove all votes for a map without deleting the submission.",
-    "Toggle Finalize Button": "Enable/Disable the Finalize button for the creator to use."
+
+mod_only_options_data = {
+    ModCommandsTuple("Force Accept", "Force submission through, overwriting difficulty votes."),
+    ModCommandsTuple("Force Deny", "Deny submission, deleting it and any associated completions/votes."),
+    ModCommandsTuple("Approve Submission", "Approve map submission, signing off on all difficulty votes."),
+    ModCommandsTuple("Start Process Over", "Remove all completions and votes for a map without deleting the submission."),  # noqa: E501
+    ModCommandsTuple("Remove Completions", "Remove all completions for a map without deleting the submission."),
+    ModCommandsTuple("Remove Votes", "Remove all votes for a map without deleting the submission."),
+    ModCommandsTuple("Toggle Finalize Button", "Enable/Disable the Finalize button for the creator to use."),
 }
 
+mod_only_options = [
+    discord.SelectOption(label=x.label, value=x.label, description=x.description) for x in mod_only_options_data
+]
 
-class ModOnlyButtonAccessory(discord.ui.Button):
+
+
+class ModOnlySelectMenu(discord.ui.Select):
     """Select mod commands."""
 
-    def __init__(self, label: str):
-        super().__init__(label=label)
+    def __init__(self) -> None:
+        super().__init__(options=mod_only_options, placeholder="Mod Only Options")
 
-    async def callback(self, interaction: Interaction) -> Any:
-        match self.label:
+    async def callback(self, interaction: Interaction) -> None:
+        # TODO: Mod only check
+        match self.values[0]:
             case "Force Accept":
                 ...
             case "Force Deny":
@@ -164,19 +174,15 @@ class PlaytestComponentsV2View(discord.ui.LayoutView):
             discord.ui.Separator(),
             discord.ui.TextDisplay(content=data.build_content()),
             discord.ui.Separator(),
+            discord.ui.TextDisplay(content="## Mod Only Commands"),
+            discord.ui.ActionRow(ModOnlySelectMenu()),
+            discord.ui.Separator(),
             discord.ui.MediaGallery(
                 discord.MediaGalleryItem("attachment://vote_hist.png"),
             ),
-            discord.ui.Separator(),
             discord.ui.ActionRow(DifficultyRatingSelect()),
         )
-        mod_section = discord.ui.Container(
-            *[
-                discord.ui.Section(
-                    discord.ui.TextDisplay(val), accessory=ModOnlyButtonAccessory(key)
-                ) for key, val in ModOnlyOptions.items()
-            ]
-        )
+
         self.add_item(data_section)
-        self.add_item(mod_section)
+
 
