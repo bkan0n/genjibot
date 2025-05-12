@@ -53,7 +53,7 @@ class PlaytestManager:
         png_buffer = await hist.export_png_bytes_async()
         file = discord.File(fp=png_buffer, filename="vote_hist.png")
 
-        tag = self.get_difficulty_forum_tag(data.difficulty)
+        tag = self.get_difficulty_forum_tag(data.difficulty.replace(" +", "").replace(" -", ""))
         thread, _ = await forum.create_thread(
             name=f"{data.code} | {data.difficulty} {data.name} by {data.creator_names[0]}"[:100],
             reason="Playtest test created",
