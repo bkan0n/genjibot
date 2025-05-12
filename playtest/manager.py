@@ -95,26 +95,19 @@ class DifficultyRatingSelect(discord.ui.Select):
         ...
 
 
-class ModOnlyButtonAccessory(discord.ui.Button):
-    def __init__(self, label: str, ):
-        super().__init__(label=label)
-
-    async def callback(self, interaction: Interaction) -> Any:
-
 
 ModOnlyOptions = {
-"Force Accept": ("Force submission through, overwriting difficulty votes.")
-"Force Deny": ("Deny submission, deleting it and any associated completions/votes.")
-"Approve Submission": ("Approve map submission, signing off on all difficulty votes.")
-"Start Process Over": ("Remove all completions and votes for a map without deleting the submission.")
-"Remove Completions": ("Remove all completions for a map without deleting the submission.")
-"Remove Votes": ("Remove all votes for a map without deleting the submission.")
-"Toggle Finalize Button": ("Enable/Disable the Finalize button for the creator to use.")
+    "Force Accept": "Force submission through, overwriting difficulty votes.",
+    "Force Deny": "Deny submission, deleting it and any associated completions/votes.",
+    "Approve Submission": "Approve map submission, signing off on all difficulty votes.",
+    "Start Process Over": "Remove all completions and votes for a map without deleting the submission.",
+    "Remove Completions": "Remove all completions for a map without deleting the submission.",
+    "Remove Votes": "Remove all votes for a map without deleting the submission.",
+    "Toggle Finalize Button": "Enable/Disable the Finalize button for the creator to use."
 }
 
 
-
-class ModCommandsButton(discord.ui.Button):
+class ModOnlyButtonAccessory(discord.ui.Button):
     """Select mod commands."""
 
     def __init__(self, label: str):
