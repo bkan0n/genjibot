@@ -32,6 +32,13 @@ class PlaytestManager:
         self._db = bot.database
         self._bot = bot
 
+    def get_difficulty_forum_tag(self, difficulty: str) -> discord.ForumTag:
+        tags = self._bot.get_guild(GENJI_GUILD_ID).get_channel(PLAYTEST_FORUM_ID).available_tags
+        for tag in tags:
+            if tag.name == difficulty:
+                return tag
+        return None
+
     async def add_playtest(self, data: MapModel) -> None:
         """Add playtest forum."""
         try:
@@ -46,11 +53,13 @@ class PlaytestManager:
         png_buffer = await hist.export_png_bytes_async()
         file = discord.File(fp=png_buffer, filename="vote_hist.png")
 
+        tag = self.get_difficulty_forum_tag(data.difficulty)
         thread, _ = await forum.create_thread(
-            name=f"Playtest: {data.code} {data.name} by {data.creator_names[0]}",
+            name=f"{data.code} | {data.difficulty} {data.name} by {data.creator_names[0]}"[:100],
             reason="Playtest test created",
             view=PlaytestComponentsV2View(data),
             file=file,
+            applied_tags=[tag]
         )
 
         playtest_data = PlaytestMetadata(
@@ -86,11 +95,47 @@ class DifficultyRatingSelect(discord.ui.Select):
         ...
 
 
-class ModCommandsSelect(discord.ui.Select):
+class ModOnlyButtonAccessory(discord.ui.Button):
+    def __init__(self, label: str, ):
+        super().__init__(label=label)
+
+    async def callback(self, interaction: Interaction) -> Any:
+
+
+ModOnlyOptions = {
+"Force Accept": ("Force submission through, overwriting difficulty votes.")
+"Force Deny": ("Deny submission, deleting it and any associated completions/votes.")
+"Approve Submission": ("Approve map submission, signing off on all difficulty votes.")
+"Start Process Over": ("Remove all completions and votes for a map without deleting the submission.")
+"Remove Completions": ("Remove all completions for a map without deleting the submission.")
+"Remove Votes": ("Remove all votes for a map without deleting the submission.")
+"Toggle Finalize Button": ("Enable/Disable the Finalize button for the creator to use.")
+}
+
+
+
+class ModCommandsButton(discord.ui.Button):
     """Select mod commands."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, label: str):
+        super().__init__(label=label)
+
+    async def callback(self, interaction: Interaction) -> Any:
+        match self.label:
+            case "Force Accept":
+                ...
+            case "Force Deny":
+                ...
+            case "Approve Submission":
+                ...
+            case "Start Process Over":
+                ...
+            case "Remove Completions":
+                ...
+            case "Remove Votes":
+                ...
+            case "Toggle Finalize Button":
+                ...
 
 
 class PlaytestVotingView(discord.ui.View):
@@ -123,11 +168,22 @@ class PlaytestComponentsV2View(discord.ui.LayoutView):
 
         data_section = discord.ui.Container(
             PlaytestLayoutViewGallery(data.map_banner()),
+            discord.ui.Separator(),
             discord.ui.TextDisplay(content=data.build_content()),
+            discord.ui.Separator(),
             discord.ui.MediaGallery(
                 discord.MediaGalleryItem("attachment://vote_hist.png"),
             ),
+            discord.ui.Separator(),
             discord.ui.ActionRow(DifficultyRatingSelect()),
         )
+        mod_section = discord.ui.Container(
+            *[
+                discord.ui.Section(
+                    discord.ui.TextDisplay(val), accessory=ModOnlyButtonAccessory(key)
+                ) for key, val in ModOnlyOptions.values()
+            ]
+        )
         self.add_item(data_section)
+        self.add_item(mod_section)
 
