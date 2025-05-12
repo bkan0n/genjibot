@@ -174,7 +174,7 @@ class PlaytestComponentsV2View(discord.ui.LayoutView):
             *[
                 discord.ui.Section(
                     discord.ui.TextDisplay(val), accessory=ModOnlyButtonAccessory(key)
-                ) for key, val in ModOnlyOptions.values()
+                ) for key, val in ModOnlyOptions.items()
             ]
         )
         self.add_item(data_section)
