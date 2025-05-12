@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import os
+import re  # noqa: TC003
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import discord
 import msgspec
 from discord import Interaction
-from discord._types import ClientT
 
-import database
 from playtest.playtest_graph import VoteHistogram
-from utils import maps, ranks
+from utils import constants, maps, ranks
 
 if TYPE_CHECKING:
     import core
@@ -54,13 +53,17 @@ class PlaytestManager:
         file = discord.File(fp=png_buffer, filename="vote_hist.png")
 
         tag = self.get_difficulty_forum_tag(data.difficulty.replace(" +", "").replace(" -", ""))
-        thread, _ = await forum.create_thread(
+
+        thread, message = await forum.create_thread(
             name=f"{data.code} | {data.difficulty} {data.name} by {data.creator_names[0]}"[:100],
             reason="Playtest test created",
-            view=PlaytestComponentsV2View(data),
             file=file,
             applied_tags=[tag]
         )
+        view = PlaytestComponentsV2View(data)
+        await message.edit(view=view)
+        total_children = sum(1 for _ in view.walk_children())
+        await thread.send(f"{total_children}")
 
         playtest_data = PlaytestMetadata(
             thread_id=thread.id,
@@ -82,10 +85,10 @@ class PlaytestManager:
         )
 
 
-class DifficultyRatingSelect(discord.ui.Select):
+class DifficultyRatingSelect(discord.ui.Select["PlaytestComponentsV2View"]):
     """Select difficulty rating."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         options = [
             discord.SelectOption(value=x, label=x) for x in ranks.DIFFICULTIES_EXT
         ]
@@ -95,35 +98,49 @@ class DifficultyRatingSelect(discord.ui.Select):
         ...
 
 
-class ModCommandsTuple(NamedTuple):
+class SelectOptionsTuple(NamedTuple):
     label: str
     description: str
 
 
-mod_only_options_data = {
-    ModCommandsTuple("Force Accept", "Force submission through, overwriting difficulty votes."),
-    ModCommandsTuple("Force Deny", "Deny submission, deleting it and any associated completions/votes."),
-    ModCommandsTuple("Approve Submission", "Approve map submission, signing off on all difficulty votes."),
-    ModCommandsTuple("Start Process Over", "Remove all completions and votes for a map without deleting the submission."),  # noqa: E501
-    ModCommandsTuple("Remove Completions", "Remove all completions for a map without deleting the submission."),
-    ModCommandsTuple("Remove Votes", "Remove all votes for a map without deleting the submission."),
-    ModCommandsTuple("Toggle Finalize Button", "Enable/Disable the Finalize button for the creator to use."),
-}
+mod_only_options_data = [
+    SelectOptionsTuple("Force Accept", "Force submission through, overwriting difficulty votes."),
+    SelectOptionsTuple("Force Deny", "Deny submission, deleting it and any associated completions/votes."),
+    SelectOptionsTuple("Approve Submission", "Approve map submission, signing off on all difficulty votes."),
+    SelectOptionsTuple("Start Process Over", "Remove all completions and votes for a map without deleting the submission."),  # noqa: E501
+    SelectOptionsTuple("Remove Completions", "Remove all completions for a map without deleting the submission."),
+    SelectOptionsTuple("Remove Votes", "Remove all votes for a map without deleting the submission."),
+    SelectOptionsTuple("Toggle Finalize Button", "Enable/Disable the Finalize button for the creator to use."),
+]
 
 mod_only_options = [
     discord.SelectOption(label=x.label, value=x.label, description=x.description) for x in mod_only_options_data
 ]
 
+creator_only_options_data = [
+    SelectOptionsTuple("Request Map Change", "Request a change such as code, category, or mechanics."),
+    SelectOptionsTuple("Request Map Deletion", "Request to delete the map from the database."),
+]
+
+creator_only_options = [
+    discord.SelectOption(label=x.label, value=x.label, description=x.description) for x in creator_only_options_data
+]
 
 
-class ModOnlySelectMenu(discord.ui.Select):
+class ModOnlySelectMenu(discord.ui.Select["PlaytestComponentsV2View"]):
     """Select mod commands."""
 
     def __init__(self) -> None:
         super().__init__(options=mod_only_options, placeholder="Mod Only Options")
 
     async def callback(self, interaction: Interaction) -> None:
-        # TODO: Mod only check
+        is_sensei = interaction.user.get_role(constants.STAFF)
+        is_mod = interaction.user.get_role(constants.MOD)
+
+        if not (is_mod or is_sensei):
+            await interaction.response.send_message("You are not a mod or a sensei!", ephemeral=True)
+            return
+
         match self.values[0]:
             case "Force Accept":
                 ...
@@ -140,21 +157,58 @@ class ModOnlySelectMenu(discord.ui.Select):
             case "Toggle Finalize Button":
                 ...
 
+class CreatorOnlySelectMenu(
+    discord.ui.DynamicItem[discord.ui.Select["PlaytestComponentsV2View"]],
+    template=r'playtest:creatoroptions:thread:(?P<id>[0-9]+)'
+):
+    """Select creator commands."""
 
-class PlaytestVotingView(discord.ui.View):
-    """View for playtest voting."""
+    view: PlaytestComponentsV2View
 
-    def __init__(
-        self,
-        # bot: core.Genji, db: database.Database, data: maps.MapModel
-    ) -> None:
-        super().__init__(timeout=300)
-        # self.bot = bot
-        # self.db = db
-        # self.data = data
-        self.add_item(DifficultyRatingSelect())
-        # self.add_item(ModCommandsSelect())
+    def __init__(self, *, data: MapModel, thread_id: int) -> None:
+        super().__init__(
+            discord.ui.Select(
+                options=creator_only_options,
+                placeholder="Creator Only Options",
+                custom_id=f"playtest:creatoroptions:thread:{thread_id}",
+            )
+        )
+        self.thread_id: int = thread_id
+        self.data = data
 
+    @classmethod
+    async def from_custom_id(
+        cls,
+        interaction: discord.Interaction[core.Genji],
+        item: discord.ui.Select,
+        match: re.Match[str],
+    ) -> CreatorOnlySelectMenu:
+        thread_id = int(match["id"])
+        data = await cls._get_map_data(interaction.client, thread_id)
+        return cls(thread_id=thread_id, data=data)
+
+    @classmethod
+    async def _get_map_data(cls, bot: core.Genji, thread_id: int) -> MapModel:
+        resp = await bot.session.get(
+            f"https://apitest.genji.pk/v2/maps/playtests/{thread_id}",
+            headers={
+                "X-API-KEY": GENJI_API_KEY,
+                "Content-Type": "application/json",
+            },
+        )
+        resp.raise_for_status()
+        return msgspec.json.decode(await resp.json(), type=maps.MapModel)
+
+    async def callback(self, interaction: Interaction) -> None:
+        if interaction.user.id not in self.view.data.creator_ids:
+            await interaction.response.send_message("You are not the creator of this map!", ephemeral=True)
+            return
+
+        match self.item.values[0]:
+            case "Request Map Change":
+                ...
+            case "Request Map Deletion":
+                ...
 
 class PlaytestLayoutViewGallery(discord.ui.MediaGallery):
     def __init__(self, url: str) -> None:
@@ -165,17 +219,23 @@ class PlaytestLayoutViewGallery(discord.ui.MediaGallery):
 
 class PlaytestComponentsV2View(discord.ui.LayoutView):
 
-    def __init__(self, data: MapModel) -> None:
+    def __init__(self, *, thread_id: int, data: MapModel) -> None:
         super().__init__(timeout=None)
+        self.thread_id = thread_id
         self.data = data
+        self.rebuild_components()
 
+    def rebuild_components(self) -> None:
+        self.clear_items()
         data_section = discord.ui.Container(
-            PlaytestLayoutViewGallery(data.map_banner()),
+            PlaytestLayoutViewGallery(self.data.map_banner()),
             discord.ui.Separator(),
-            discord.ui.TextDisplay(content=data.build_content()),
+            discord.ui.TextDisplay(content=self.data.build_content()),
             discord.ui.Separator(),
             discord.ui.TextDisplay(content="## Mod Only Commands"),
             discord.ui.ActionRow(ModOnlySelectMenu()),
+            discord.ui.TextDisplay(content="## Creator Only Commands"),
+            discord.ui.ActionRow(CreatorOnlySelectMenu(thread_id=self.thread_id, data=self.data)),
             discord.ui.Separator(),
             discord.ui.MediaGallery(
                 discord.MediaGalleryItem("attachment://vote_hist.png"),
@@ -184,5 +244,4 @@ class PlaytestComponentsV2View(discord.ui.LayoutView):
         )
 
         self.add_item(data_section)
-
 
