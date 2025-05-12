@@ -60,7 +60,7 @@ class PlaytestManager:
             file=file,
             applied_tags=[tag]
         )
-        view = PlaytestComponentsV2View(data)
+        view = PlaytestComponentsV2View(data=data, thread_id=thread.id)
         await message.edit(view=view)
         total_children = sum(1 for _ in view.walk_children())
         await thread.send(f"{total_children}")
