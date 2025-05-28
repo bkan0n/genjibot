@@ -482,7 +482,7 @@ class ChangeRequestsCog(commands.Cog):
     @tasks.loop(hours=1)
     async def alert_stale_change_requests(self) -> None:
         query = """
-            SELECT thread_id, user_id
+            SELECT thread_id, user_id, creator_mentions
             FROM change_requests
             WHERE created_at < NOW() - INTERVAL '2 weeks'
                 AND alerted IS FALSE AND resolved IS FALSE;
@@ -493,10 +493,8 @@ class ChangeRequestsCog(commands.Cog):
             if not thread:
                 continue
             assert isinstance(thread, discord.Thread)
-            user = self.bot.get_user(row["user_id"])
-            mention = user.mention if user else ""
             await thread.send(
-                f"{mention}<@&1120076555293569081>\n# This change request is now stale. "
+                f"{row['creator_mentions']}<@&1120076555293569081>\n# This change request is now stale. "
                 "If you have made the necessary changes, please click the button above to confirm.",
                 view=ChangeRequestModCloseView(),
             )
