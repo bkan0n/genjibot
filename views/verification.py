@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -8,6 +7,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from utils import constants, models, utils
+from utils.models import Record
 from utils.newsfeed import NewsfeedEvent
 
 if TYPE_CHECKING:
@@ -65,9 +65,11 @@ class VerificationView(discord.ui.View):
     async def _fetch_record_by_hidden_id(db: database.Database, hidden_id: int) -> models.Record | None:
         query = """
             SELECT
-                rq.*, m.official
+                rq.*, m.official,
+                mm.gold, mm.silver, mm.bronze
             FROM records rq
             LEFT JOIN maps m on rq.map_code = m.map_code
+            LEFT JOIN map_medals mm on m.map_code = mm.map_code
             WHERE hidden_id=$1
         """
         row = await db.fetchrow(query, hidden_id)
@@ -110,9 +112,9 @@ class VerificationView(discord.ui.View):
     async def _fetch_medals(db: database.Database, map_code: str) -> asyncpg.Record:
         query = """
             SELECT
-                coalesce(gold, 0),
-                coalesce(silver, 0),
-                coalesce(bronze, 0)
+                coalesce(gold, 0) AS gold,
+                coalesce(silver, 0) AS silver,
+                coalesce(bronze, 0) AS bronze
             FROM map_medals mm RIGHT JOIN maps m ON m.map_code = mm.map_code
             WHERE m.map_code = $1;
         """
@@ -179,6 +181,38 @@ class VerificationView(discord.ui.View):
         """
         return await db.fetchrow(query, map_code, user_id)
 
+    async def _rank_num(self, db: database.Database, map_code: str, user_id: int, time: float) -> None:
+        query = """
+                WITH ranks AS (
+                    SELECT
+                        r.user_id,
+                        record,
+                        screenshot,
+                        video,
+                        verified,
+                        r.map_code,
+                        inserted_at,
+                        rank() OVER (
+                            PARTITION BY r.map_code, r.user_id
+                            ORDER BY inserted_at DESC
+                        ) AS latest
+                    FROM records r
+                    LEFT JOIN maps m on m.map_code = r.map_code
+                    WHERE m.map_code = $1 AND legacy IS FALSE AND r.verified
+                )
+                SELECT
+                    user_id,
+                    map_code,
+                    record,
+                    inserted_at,
+                    RANK() OVER (
+                        ORDER BY record
+                        ) rank_num
+                FROM ranks
+                WHERE user_id = $2 AND latest = 1 AND record = $3
+                """
+        return await db.fetchrow(query, map_code, user_id)
+
     async def verification(
         self,
         itx: discord.Interaction[core.Genji],
@@ -200,7 +234,6 @@ class VerificationView(discord.ui.View):
 
         if verified:
             medals = await self._fetch_medals(itx.client.database, search.map_code)
-
             data = self.accepted(itx.user.mention, search)
             await self._verify_record(itx.client.database, itx.message.id, itx.user.id)
             await self._verify_quality_rating(itx.client.database, search.map_code, record_submitter.id)
@@ -211,7 +244,17 @@ class VerificationView(discord.ui.View):
                 itx.client.database, record_submitter.id, search.map_code
             )
 
-            icon = search.icon_generator
+            icon = Record(
+                gold=newsfeed_data.get("gold"),
+                silver=newsfeed_data.get("silver"),
+                bronze=newsfeed_data.get("bronze"),
+                rank_num=newsfeed_data.get("rank_num"),
+                record=newsfeed_data.get("record"),
+                video=newsfeed_data.get("video"),
+                completion=search.completion,
+            ).icon_generator
+
+            # icon = search.icon_generator
 
             if newsfeed_data and search.video and icon not in [constants.PARTIAL_VERIFIED, constants.FULLY_VERIFIED]:
                 _data = {
@@ -374,11 +417,11 @@ class VerificationView(discord.ui.View):
             search.record = f"{search.record} - Completion"
 
         icon = search.icon_generator
-        record = f"**Record:** {search.record} " f"{icon}"
+        record = f"**Record:** {search.record} {icon}"
         if search.video:
             edit = f"{icon} Complete verification by {verifier_mention}!"
         else:
-            edit = f"{icon} Partial verification by {verifier_mention}! " f"No video proof supplied."
+            edit = f"{icon} Partial verification by {verifier_mention}! No video proof supplied."
         return {
             "edit": edit,
             "direct_message": (
@@ -399,7 +442,7 @@ class VerificationView(discord.ui.View):
         record = f"**Record:** {search.record}\n"
 
         return {
-            "edit": f"{constants.UNVERIFIED} " f"Rejected by {verifier_mention}!",
+            "edit": f"{constants.UNVERIFIED} Rejected by {verifier_mention}!",
             "direct_message": (
                 f"**Map Code:** {search.map_code}\n" + record + f"Your record got {constants.UNVERIFIED} "
                 f"rejected by {verifier_mention}!\n\n"
@@ -416,5 +459,5 @@ class VerificationView(discord.ui.View):
 ALERT = (
     # "Don't like these alerts? "
     # "Turn it off by using the command `/alerts false`.\n"
-    "You can change your display name " "for records in the bot with the command `/name`!"
+    "You can change your display name for records in the bot with the command `/name`!"
 )
