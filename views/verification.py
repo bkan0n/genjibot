@@ -262,9 +262,9 @@ class VerificationView(discord.ui.View):
                         "map_code": newsfeed_data["map_code"],
                         "map_name": newsfeed_data["map_name"],
                         "creators": newsfeed_data["creators"],
-                        "gold": medals.get("gold"),
-                        "silver": medals.get("silver"),
-                        "bronze": medals.get("bronze"),
+                        "gold": float(medals.get("gold")),
+                        "silver": float(medals.get("silver")),
+                        "bronze": float(medals.get("bronze")),
                     },
                     "record": {
                         "record": float(newsfeed_data["record"]),
