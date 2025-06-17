@@ -65,13 +65,14 @@ class XPManager:
         xp_channel = guild.get_channel(1324496532447166505)
         assert isinstance(xp_channel, discord.TextChannel)
         user = guild.get_member(user_id)
-        assert user
+        if not user:
+            return
 
         await self._bot.notification_manager.notify_channel_default_to_no_ping(
             xp_channel,
             user_id,
             Notification.PING_ON_XP_GAIN,
-            f"<:_:976917981009440798> {user.display_name} has gained **{amount} XP** ({type_})!"
+            f"<:_:976917981009440798> {user.display_name} has gained **{amount} XP** ({type_})!",
         )
 
         _xp_data = await self._check_xp_tier_change(result["previous_amount"], result["new_amount"])
@@ -97,16 +98,15 @@ class XPManager:
                 (
                     f"Congratulations! You have ranked up to **{new_rank}**!\n"
                     "[Log into the website to open your lootbox!](https://genji.pk/lootbox.php)"
-                )
+                ),
             )
 
             await self._bot.notification_manager.notify_channel_default_to_no_ping(
                 xp_channel,
                 user_id,
                 Notification.PING_ON_COMMUNITY_RANK_UPDATE,
-                f"<:_:976468395505614858> {user.display_name} has ranked up! **{old_rank}** -> **{new_rank}**\n"
+                f"<:_:976468395505614858> {user.display_name} has ranked up! **{old_rank}** -> **{new_rank}**\n",
             )
-
 
         if _xp_data["prestige_change"]:
             for _ in range(15):
@@ -135,7 +135,7 @@ class XPManager:
                 (
                     f"Congratulations! You have prestiged up to **{_xp_data['new_prestige_level']}**!\n"
                     "[Log into the website to open your 15 lootboxes!](https://genji.pk/lootbox.php)"
-                )
+                ),
             )
 
             await self._bot.notification_manager.notify_channel_default_to_no_ping(
@@ -146,12 +146,15 @@ class XPManager:
                     f"<:_:976468395505614858><:_:976468395505614858><:_:976468395505614858>"
                     f" {user.display_name} has prestiged! "
                     f"**Prestige {_xp_data['old_prestige_level']}** -> **Prestige {_xp_data['new_prestige_level']}**"
-                )
+                ),
             )
 
     @staticmethod
     async def _update_xp_prestige_roles_for_user(
-        guild: discord.Guild, user_id: int, old_prestige_level: int, new_prestige_level: int,
+        guild: discord.Guild,
+        user_id: int,
+        old_prestige_level: int,
+        new_prestige_level: int,
     ) -> None:
         old_prestige_role = discord.utils.get(guild.roles, name=f"Prestige {old_prestige_level}")
         new_prestige_role = discord.utils.get(guild.roles, name=f"Prestige {new_prestige_level}")
