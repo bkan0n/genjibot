@@ -76,7 +76,10 @@ async def _check_weekly_limit(
 
 async def _check_max_limit(itx: discord.Interaction[core.Genji]) -> int:
     query = """
-        SELECT count(*) FROM playtest WHERE is_author = TRUE AND user_id = $1;
+        SELECT count(*)
+        FROM playtest p
+        LEFT JOIN maps m ON p.map_code = m.map_code
+        WHERE is_author = TRUE AND user_id = $1 AND NOT m.official;
     """
     row = await itx.client.database.fetchrow(query, itx.user.id)
     if not row:
