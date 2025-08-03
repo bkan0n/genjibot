@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 import logging
 import typing
-from collections import defaultdict
 
 import discord
 from discord.ext import commands
+
+from views.verification import VerificationView
 
 if typing.TYPE_CHECKING:
     import core
@@ -51,9 +51,7 @@ class Test(commands.Cog):
             else:
                 synced = await ctx.bot.tree.sync()
 
-            await ctx.send(
-                f"Synced {len(synced)} commands " f"{'globally' if spec is None else 'to the current guild.'}"
-            )
+            await ctx.send(f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}")
             return
 
         ret = 0
@@ -86,7 +84,16 @@ class Test(commands.Cog):
     @commands.is_owner()
     async def tt(self, ctx: commands.Context) -> None:
         x = 1 / 0
-        return
+
+    @commands.command()
+    async def fix(self, ctx: commands.Context, message_id: int) -> None:
+        if ctx.author.id not in (141372217677053952, 681391478605479948):
+            return
+        if ctx.channel.id != 1072898747551469658:
+            return
+        v = VerificationView()
+        assert isinstance(ctx.channel, discord.TextChannel)
+        await ctx.channel.get_partial_message(message_id).edit(view=v)
 
     @commands.command()
     @commands.is_owner()
