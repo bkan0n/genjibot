@@ -584,7 +584,7 @@ class ModCommands(commands.Cog):
             map_code,
         )
         if playtest := await itx.client.database.get_row(
-            "SELECT thread_id, original_msg, message_id FROM playtest WHERE map_code=$1",
+            "SELECT p.thread_id, p.original_msg, p.message_id FROM playtest p LEFT JOIN maps m ON p.map_code = m.map_code WHERE p.map_code=$1 AND official = FALSE",
             map_code,
         ):
             await itx.client.database.set(
