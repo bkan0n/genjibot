@@ -148,16 +148,29 @@ class Records(commands.Cog):
     async def _upload_screenshot(self, screenshot: discord.Attachment) -> str:
         image = await screenshot.read()
 
-        r = await self.bot.session.post(
-            "http://genji-lust:8000/v1/images/genji-parkour-images",
-            params={"format": screenshot.content_type.split("/")[1]},
-            headers={
-                "content-length": str(len(image)),
-                "content-type": "application/octet-stream",
-            },
-            data=image,
-        )
-        r.raise_for_status()
+        print(screenshot.content_type)
+        try:
+            r = await self.bot.session.post(
+                "http://genji-lust:8000/v1/images/genji-parkour-images",
+                params={"format": screenshot.content_type.split("/")[1]},
+                headers={
+                    "content-length": str(len(image)),
+                    "content-type": "application/octet-stream",
+                },
+                data=image,
+            )
+            r.raise_for_status()
+        except Exception:
+            r = await self.bot.session.post(
+                "http://genji-lust:8000/v1/images/genji-parkour-images",
+                params={"format": "png"},
+                headers={
+                    "content-length": str(len(image)),
+                    "content-type": "application/octet-stream",
+                },
+                data=image,
+            )
+            r.raise_for_status()
         data = await r.json()
         bucket_id = data["bucket_id"]
         sizing_id = data["images"][0]["sizing_id"]
