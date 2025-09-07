@@ -307,7 +307,7 @@ class Records(commands.Cog):
                     map_code,
                     itx.user.id,
                     time,
-                    channel_msg.jump_url,
+                    cdn_screenshot,
                     video,
                     channel_msg.id,
                     channel_msg.channel.id,
